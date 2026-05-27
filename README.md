@@ -9,6 +9,7 @@
 ![Tests](https://img.shields.io/badge/tests-50%20passing-brightgreen)
 ![Lint: ruff](https://img.shields.io/badge/lint-ruff-46a2f1)
 ![Built with MuJoCo](https://img.shields.io/badge/sim-MuJoCo-ff7043)
+[![Docs](https://img.shields.io/badge/docs-online-blueviolet)](https://manas-arumalla.github.io/segway-control-suite/)
 
 <img src="assets/lqr_balance.gif" width="410" alt="LQR balancing and recovering from a kick (MuJoCo)"/>
 <img src="assets/swingup.gif" width="410" alt="Energy-based swing-up from hanging, then balancing (MuJoCo)"/>
@@ -231,7 +232,8 @@ adds **compare-all** and region-of-attraction tabs.
 - **[`docs/implementation-notes.md`](docs/implementation-notes.md)** — design decisions & derivations.
 - **[`PROGRESS.md`](PROGRESS.md)** / **[`CHECKPOINTS.md`](CHECKPOINTS.md)** — development log & reproducible milestones.
 
-Build the site locally with `mkdocs serve` (needs `pip install -e ".[docs]"`).
+📖 **Live documentation:** <https://manas-arumalla.github.io/segway-control-suite/>
+(build locally with `mkdocs serve` after `pip install -e ".[docs]"`).
 
 ## Contributing
 
