@@ -1,8 +1,9 @@
 # Modeling the self-balancing robot
 
 This page derives the plant used throughout the project. The implementation lives in
-[`src/segway/models/dynamics.py`](../../src/segway/models/dynamics.py) and is cross-checked
-symbolically in [`src/segway/models/symbolic.py`](../../src/segway/models/symbolic.py).
+[`src/segway/models/dynamics.py`](https://github.com/Manas-arumalla/segway-control-suite/blob/main/src/segway/models/dynamics.py)
+and is cross-checked symbolically in
+[`src/segway/models/symbolic.py`](https://github.com/Manas-arumalla/segway-control-suite/blob/main/src/segway/models/symbolic.py).
 
 ## System
 

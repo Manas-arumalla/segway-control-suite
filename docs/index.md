@@ -5,8 +5,8 @@ inverted pendulum** — from classical to learned — with honest dynamics, real
 quantitative head-to-head metrics, and publication-quality visuals.
 
 <div align="center">
-  <img src="../assets/lqr_balance.gif" width="360"/>
-  <img src="../assets/swingup.gif" width="360"/>
+  <img src="https://raw.githubusercontent.com/Manas-arumalla/segway-control-suite/main/assets/lqr_balance.gif" width="360"/>
+  <img src="https://raw.githubusercontent.com/Manas-arumalla/segway-control-suite/main/assets/swingup.gif" width="360"/>
 </div>
 
 ## What's inside
