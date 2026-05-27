@@ -1,0 +1,60 @@
+<!--
+  Elevated cart-pole model used ONLY for the swing-up visualization.
+
+  Swing-up is the classic cart-pole maneuver: the body must rotate a full 180 deg from
+  hanging-down to upright. On the ground-robot model the body would clip through the floor
+  when it points downward (the pivot sits at wheel height). Here the pivot rides a raised
+  horizontal rail, so the pendulum swings freely above the floor — the standard, visually
+  correct way to show a swing-up. The DYNAMICS are identical to the main model (gravity,
+  masses, damping are uniform and independent of absolute height); only the rendering
+  geometry differs. Body/joint/actuator names match the main model so the same
+  `MuJoCoPlant._apply_params` and torque mapping work unchanged.
+-->
+<mujoco model="cartpole_swingup">
+  <option gravity="0 0 -9.81" timestep="0.001"/>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.5 0.6 0.7" rgb2="0.1 0.1 0.15"
+             width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.2 0.25 0.3" rgb2="0.3 0.35 0.4"
+             width="512" height="512"/>
+    <material name="grid" texture="grid" texrepeat="8 8" reflectance="0.1"/>
+    <material name="rail" rgba="0.35 0.37 0.42 1"/>
+    <material name="cart" rgba="0.18 0.2 0.24 1"/>
+    <material name="body" rgba="0.0 0.78 0.9 1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 4" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
+    <geom name="floor" type="plane" pos="0 0 0" size="20 20 0.1" material="grid"
+          contype="0" conaffinity="0"/>
+
+    <!-- raised horizontal rail the cart slides along -->
+    <geom name="rail" type="capsule" fromto="-3 0 0.7 3 0 0.7" size="0.018" material="rail"
+          contype="0" conaffinity="0"/>
+    <geom name="postL" type="capsule" fromto="-3 0 0 -3 0 0.7" size="0.02" material="rail"
+          contype="0" conaffinity="0"/>
+    <geom name="postR" type="capsule" fromto="3 0 0 3 0 0.7" size="0.02" material="rail"
+          contype="0" conaffinity="0"/>
+
+    <body name="base" pos="0 0 0.7">
+      <inertial pos="0 0 0" mass="1.864" diaginertia="0.02 0.02 0.02"/>
+      <joint name="slide" type="slide" axis="1 0 0" damping="0.05"/>
+      <geom type="box" size="0.13 0.09 0.05" material="cart" contype="0" conaffinity="0"/>
+
+      <body name="pendulum" pos="0 0 0">
+        <inertial pos="0 0 0.4" mass="5.0" diaginertia="0.2 0.2 0.01"/>
+        <joint name="pend_hinge" type="hinge" axis="0 1 0" damping="0.2"/>
+        <geom type="capsule" fromto="0 0 0 0 0 0.5" size="0.035" material="body"
+              contype="0" conaffinity="0"/>
+        <geom type="box" pos="0 0 0.52" size="0.09 0.06 0.04" material="body"
+              contype="0" conaffinity="0"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <general name="wheel_drive" joint="slide" gear="1" ctrllimited="true" ctrlrange="-2000 2000"/>
+    <general name="reaction_torque" joint="pend_hinge" gear="1" ctrllimited="true" ctrlrange="-500 500"/>
+  </actuator>
+</mujoco>

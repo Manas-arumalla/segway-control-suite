@@ -1,0 +1,87 @@
+<mujoco model="segway">
+  <option gravity="0 0 -9.81" timestep="0.001"/>
+
+  <asset>
+    <texture type="skybox" builtin="gradient"
+             rgb1="0.9 0.9 0.9" rgb2="0.8 0.8 0.8"
+             width="512" height="512"/>
+    <texture name="checker" type="2d" builtin="checker"
+             rgb1="0.8 0.8 0.8" rgb2="0.95 0.95 0.95"
+             width="512" height="512"/>
+    <material name="matplane" texture="checker" texrepeat="1 1"/>
+  </asset>
+
+  <worldbody>
+    <!-- Ground -->
+    <geom type="plane" pos="0 0 0" size="10 10 0.1" material="matplane"/>
+
+    <!-- Segway Base (The Wheel Axis Frame) -->
+    <!-- Modeled as a sliding base (x-motion) representing the wheel contact point -->
+    <body name="base" pos="0 0 0.1">
+      <!-- Total Mass M = Mass_chassis_base + 2 * Mass_wheel -->
+      <!-- We assume the base body represents the AXLE and WHEELS -->
+      <inertial pos="0 0 0"
+                mass="1.864"
+                diaginertia="0.02 0.02 0.02"/>
+
+      <!-- Linear control joint (Friction estimated) -->
+      <joint name="slide"
+             type="slide"
+             axis="1 0 0"
+             damping="0.05"
+             limited="true"
+             range="-5 5"/>
+
+      <!-- Visual Wheels -->
+      <body pos="0 0.1 0">
+        <geom type="cylinder" size="0.1 0.02" euler="90 0 0" rgba="0.1 0.1 0.1 1"/>
+      </body>
+      <body pos="0 -0.1 0">
+        <geom type="cylinder" size="0.1 0.02" euler="90 0 0" rgba="0.1 0.1 0.1 1"/>
+      </body>
+
+      <!-- Pendulum (Chassis) -->
+      <body name="pendulum" pos="0 0 0.0">
+         <!-- COM is 0.4m above axle -->
+        <inertial pos="0 0 0.4"
+                  mass="5.0"
+                  diaginertia="0.2 0.2 0.01"/>
+
+        <joint name="pend_hinge"
+               type="hinge"
+               axis="0 1 0"
+               damping="0.2"/>
+
+        <geom type="capsule"
+              fromto="0 0 0 0 0 0.5"
+              size="0.03"
+              rgba="0.8 0.2 0.2 1"/>
+      
+        <!-- (Removed the blue box 'head' to avoid confusion) -->
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <!-- Actuator 1: Traction Force (F = tau/r) -->
+    <general name="wheel_drive"
+             joint="slide"
+             gear="1"
+             ctrllimited="true"
+             ctrlrange="-500 500"/>
+
+    <!-- Actuator 2: Reaction Torque (-tau) -->
+    <general name="reaction_torque"
+             joint="pend_hinge"
+             gear="1"
+             ctrllimited="true"
+             ctrlrange="-100 100"/>
+  </actuator>
+
+  <sensor>
+    <jointpos joint="slide"/>
+    <jointvel joint="slide"/>
+    <jointpos joint="pend_hinge"/>
+    <jointvel joint="pend_hinge"/>
+  </sensor>
+</mujoco>

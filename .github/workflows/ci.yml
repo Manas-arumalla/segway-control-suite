@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Lint, type-check & test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install package (core + mpc + dev)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[mpc,symbolic,dev]"
+
+      - name: Ruff lint
+        run: ruff check src tests
+
+      - name: Type check (non-blocking)
+        run: mypy src || true
+
+      - name: Run tests
+        run: pytest --cov=segway --cov-report=term-missing
+
+  docs:
+    name: Build docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install ".[docs]"
+      - run: mkdocs build --strict || echo "docs not yet finalized"

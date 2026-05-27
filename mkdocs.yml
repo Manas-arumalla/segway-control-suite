@@ -1,0 +1,48 @@
+site_name: Segway Control Suite
+site_description: A rigorous benchmark of control strategies for a self-balancing wheeled inverted pendulum.
+repo_url: https://github.com/Manas-arumalla/segway-control-suite
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: slate
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+    - scheme: default
+      primary: teal
+      accent: cyan
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+  features:
+    - navigation.sections
+    - navigation.top
+    - content.code.copy
+    - toc.integrate
+
+nav:
+  - Home: index.md
+  - Modeling & dynamics: theory/modeling.md
+  - Architecture: architecture.md
+  - Advanced methods: advanced-methods.md
+  - Roadmap: roadmap.md
+  - Implementation notes: implementation-notes.md
+
+markdown_extensions:
+  - admonition
+  - toc:
+      permalink: true
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.arithmatex:
+      generic: true
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+plugins:
+  - search

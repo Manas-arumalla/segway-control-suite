@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Segway Control Suite"
+abstract: >-
+  A rigorous, reproducible benchmark of control strategies for a self-balancing wheeled
+  inverted pendulum — from classical to learned — with a validated plant model, realistic
+  sensing and state estimation, quantitative head-to-head metrics, and interactive tools.
+type: software
+version: "0.1.0"
+date-released: "2026-05-27"
+license: MIT
+authors:
+  - given-names: "Manas Reddy"
+    family-names: "Arumalla"
+keywords:
+  - control theory
+  - robotics
+  - inverted pendulum
+  - LQR
+  - model predictive control
+  - reinforcement learning
+  - MuJoCo
+repository-code: "https://github.com/Manas-arumalla/segway-control-suite"
