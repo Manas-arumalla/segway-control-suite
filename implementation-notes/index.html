@@ -525,10 +525,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#nd-2-two-simulation-backends-planned-2026-05-25" class="md-nav__link">
+  <a href="#nd-2-two-simulation-backends-2026-05-25" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ND-2 — Two simulation backends (planned, 2026-05-25)
+        ND-2 — Two simulation backends (2026-05-25)
       
     </span>
   </a>
@@ -663,7 +663,7 @@
 
 
 <h1 id="implementation-notes">Implementation Notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h1>
-<p>Technical decisions, derivations, and rationale. This is the "why" companion to the code.</p>
+<p>My technical decisions, derivations, and rationale — the "why" companion to the code.</p>
 <hr />
 <h2 id="nd-1-canonical-plant-model-2026-05-25">ND-1 — Canonical plant model (2026-05-25)<a class="headerlink" href="#nd-1-canonical-plant-model-2026-05-25" title="Permanent link">&para;</a></h2>
 <h3 id="the-problem-in-the-legacy-code">The problem in the legacy code<a class="headerlink" href="#the-problem-in-the-legacy-code" title="Permanent link">&para;</a></h3>
@@ -683,10 +683,10 @@ other, and the two even apply control to MuJoCo differently (two actuators vs on
 <li>A single motor torque <code>τ</code> produces a horizontal traction force <code>F = τ/r</code> on the base and,
   by Newton's third law, a reaction torque <code>−τ</code> on the body about the axle.</li>
 </ul>
-<p>This was chosen because (a) it is the more physically faithful description of a real
+<p>I chose this because (a) it is the more physically faithful description of a real
 self-balancing robot driven by wheel motors, and (b) it matches the dual-actuator mapping
-already used in the better legacy runner. It also reduces cleanly to the classic cart-pole
-and provides a natural upgrade path to a true rolling-contact wheel model.</p>
+I already used in the better legacy runner. It also reduces cleanly to the classic cart-pole
+and gives me a natural upgrade path to a true rolling-contact wheel model.</p>
 <h3 id="equations-of-motion-full-nonlinear">Equations of motion (full nonlinear)<a class="headerlink" href="#equations-of-motion-full-nonlinear" title="Permanent link">&para;</a></h3>
 <p>With <code>M = m_base + 2·m_wheel</code>, body mass <code>m</code>, COM distance <code>l</code>, body inertia <code>I</code>,
 <code>c = cosθ</code>, <code>s = sinθ</code>, viscous damping <code>b_x</code>, <code>b_θ</code>:</p>
@@ -707,7 +707,7 @@ B =     [ (I+m·l²)/r + m·l ) / D  ]
         [ −( m·l/r + (M+m) ) / D  ]
 </code></pre></div>
 <p>This reproduces <code>segway_dynamics.py</code>'s <code>A</code>/<code>B</code> exactly — confirming that file was the
-correct one. It is <strong>machine-verified</strong> two ways in <code>tests/test_dynamics.py</code>:
+correct one. I machine-verify it two ways in <code>tests/test_dynamics.py</code>:
 1. against a finite-difference Jacobian of the nonlinear <code>f</code> (numeric linearization), and
 2. against an independent SymPy derivation in <code>src/segway/models/symbolic.py</code>.</p>
 <h3 id="default-parameters">Default parameters<a class="headerlink" href="#default-parameters" title="Permanent link">&para;</a></h3>
@@ -716,9 +716,10 @@ b_x=0.05, b_theta=0.2</code>. The upright equilibrium is open-loop <strong>unsta
 real eigenvalue from the <code>(M+m)·m·g·l/D</code> gravity term) and the pair <code>(A,B)</code> is
 <strong>controllable</strong> — both asserted in the tests.</p>
 <hr />
-<h2 id="nd-2-two-simulation-backends-planned-2026-05-25">ND-2 — Two simulation backends (planned, 2026-05-25)<a class="headerlink" href="#nd-2-two-simulation-backends-planned-2026-05-25" title="Permanent link">&para;</a></h2>
-<p>The benchmark must be fast, deterministic, and headless (CI-friendly), but demos want
-high-fidelity 3D. So there are two backends sharing the <em>same</em> controllers/metrics:</p>
+<h2 id="nd-2-two-simulation-backends-2026-05-25">ND-2 — Two simulation backends (2026-05-25)<a class="headerlink" href="#nd-2-two-simulation-backends-2026-05-25" title="Permanent link">&para;</a></h2>
+<p>I needed the benchmark to be fast, deterministic, and headless (CI-friendly), but I also
+wanted high-fidelity 3D for demos, so I built two backends that share the <em>same</em>
+controllers/metrics:</p>
 <ul>
 <li><strong>Analytic backend</strong> (default): fixed-step RK4 integration of the nonlinear <code>f</code>. Pure
   NumPy/SciPy, no display, fully deterministic. This drives tests and benchmarks.</li>
@@ -741,24 +742,25 @@ uncontrolled cyclic mode → a marginal pole at the origin). The cascaded contro
 <code>theta_cmd = clip(kx·x + kv·ẋ, ±θ_cmd_max)</code> (with <code>kx, kv &lt; 0</code>), and an <strong>inner PD(+I)</strong>
 loop that drives the tilt to that command. Time-scale separation matters: a weakly damped
 inner loop produces a slow inter-loop <strong>limit cycle</strong> (~0.15 rad). Raising the inner
-derivative gain (<code>kd≈45</code>) restores clean settling. Result: holds position to ~0.12 m where
-plain PID drifts ~2.8 m — verified in <code>tests/test_advanced_controllers.py</code>.</p>
+derivative gain (<code>kd≈45</code>) restores clean settling. The result holds position to ~0.12 m
+where the plain PID drifts ~2.8 m — which I verify in <code>tests/test_advanced_controllers.py</code>.</p>
 <h2 id="nd-5-energy-based-swing-up-2026-05-25">ND-5 — Energy-based swing-up (2026-05-25)<a class="headerlink" href="#nd-5-energy-based-swing-up-2026-05-25" title="Permanent link">&para;</a></h2>
 <p>A hybrid controller: an <strong>energy-shaping</strong> law swings the body up from hanging, then an LQR
 <strong>catches and balances</strong> it once within <code>switch_angle</code> of upright.</p>
 <p>Key subtlety for <em>this</em> plant: the textbook Åström–Furuta law assumes the input is <strong>cart
 acceleration</strong> <code>a</code>, giving <code>dE/dt = −m l a cos θ · θ̇</code>, so <code>a = k (E − E_top) θ̇ cos θ</code>
-pumps energy toward the upright value <code>E_top = m g l</code>. Our actual input is <strong>motor torque</strong>;
-applying the energy law <em>directly as torque</em> fails — the <code>τ→F=τ/r</code> force amplification (×10)
-just throws the cart away. The fix is to command a desired cart acceleration and convert it
-to torque via <code>τ = (M+m)·a·r</code>. Two extra terms (<code>−k_cart·ẋ − k_pos·x</code>) keep the cart from
-running away during pumping, and the balancer holds the position <em>where it caught</em> (not the
-origin) so it isn't fighting a large position error at the handoff. From hanging it reaches
-upright (min |θ| &lt; 0.05) and is caught — verified in the test suite. Swing-up is a different
+pumps energy toward the upright value <code>E_top = m g l</code>. But the actual input here is <strong>motor
+torque</strong>; applying the energy law <em>directly as torque</em> fails — the <code>τ→F=τ/r</code> force
+amplification (×10) just throws the cart away. I fix this by commanding a desired cart
+acceleration and converting it to torque via <code>τ = (M+m)·a·r</code>. I add two terms
+(<code>−k_cart·ẋ − k_pos·x</code>) to keep the cart from running away during pumping, and I have the
+balancer hold the position <em>where it caught</em> (not the origin) so it isn't fighting a large
+position error at the handoff. From hanging it reaches upright (min |θ| &lt; 0.05) and is
+caught — which I verify in the test suite. Swing-up is a different
 task from regulation, so it is <strong>excluded from the regulation benchmark</strong> (<code>REGULATORS</code>) and
 showcased on its own (<code>assets/swingup.gif</code>).</p>
 <h2 id="nd-6-h-robust-control-2026-05-25">ND-6 — H∞ robust control (2026-05-25)<a class="headerlink" href="#nd-6-h-robust-control-2026-05-25" title="Permanent link">&para;</a></h2>
-<p>Implemented <strong>state-feedback H∞</strong> from first principles (no <code>slycot</code>): the suboptimal-γ
+<p>I implemented <strong>state-feedback H∞</strong> from first principles (no <code>slycot</code>): the suboptimal-γ
 controller solves the H∞ algebraic Riccati equation via its <strong>Hamiltonian matrix</strong> (stable
 invariant subspace → <code>X = U₂U₁⁻¹</code>), with a <strong>γ-bisection</strong> toward the smallest feasible γ
 (then backed off by <code>gamma_margin</code> for margin). <code>K = R⁻¹B₂ᵀX</code>.</p>
@@ -771,8 +773,8 @@ LQR; backing γ off (larger <code>gamma_margin</code>) recovers parametric robus
 different robustness axes — an instructive result rather than "H∞ is just better."</p>
 <h2 id="nd-7-why-pole-placement-looked-bad-and-the-fix-2026-05-25">ND-7 — Why pole placement looked bad, and the fix (2026-05-25)<a class="headerlink" href="#nd-7-why-pole-placement-looked-bad-and-the-fix-2026-05-25" title="Permanent link">&para;</a></h2>
 <p>The benchmark first showed pole placement at <strong>37% robustness / 64% ROA</strong> — much worse than
-LQR. Investigation (a pole-set sweep, see <code>git</code> history / the analysis probes) showed this
-is <strong>entirely a pole-selection problem</strong>, not a code bug:</p>
+LQR. I investigated with a pole-set sweep, which showed this is <strong>entirely a pole-selection
+problem</strong>, not a code bug:</p>
 <table>
 <thead>
 <tr>
@@ -823,15 +825,15 @@ margin. This contrast is one of the project's headline control-theory takeaways.
 <code>x_m_dot = A_m x_m</code> (<code>A_m = A - B K</code>), and the weights follow the Lyapunov-stable law
 <code>theta_hat_dot = gamma * x * (B^T P e) - sigma * theta_hat</code> (<code>P</code> solves
 <code>A_m^T P + P A_m = -Q</code>; sigma-modification adds robustness). Because <code>theta_hat = 0</code>
-recovers the LQR baseline exactly, adaptation can only help. Verified to balance the nominal
-plant and a +60% mass / +30% length / +60% inertia <strong>mismatched</strong> plant.</p>
+recovers the LQR baseline exactly, adaptation can only help. I verified it balances the
+nominal plant and a +60% mass / +30% length / +60% inertia <strong>mismatched</strong> plant.</p>
 <h2 id="nd-9-reinforcement-learning-ppo-2026-05-25">ND-9 — Reinforcement learning (PPO) (2026-05-25)<a class="headerlink" href="#nd-9-reinforcement-learning-ppo-2026-05-25" title="Permanent link">&para;</a></h2>
 <p>A Gymnasium env (<code>segway/envs/gym_env.py</code>) wraps the <em>same</em> nonlinear plant (RK4 substeps,
 20 ms control). Reward = <code>cos(theta)</code> minus quadratic penalties on position, velocities,
 and effort; episodes end on fall or cart-limit. <strong>Domain randomization</strong> perturbs the
 physical parameters each episode (±40% mass/inertia, ±25% length, ±60% damping), producing
 a policy robust to model error — the RL analogue of the Monte-Carlo robustness benchmark.
-Trained with Stable-Baselines3 PPO (<code>scripts/train_rl.py</code>); the learned policy is wrapped as
+I train it with Stable-Baselines3 PPO (<code>scripts/train_rl.py</code>) and wrap the learned policy as
 a normal <code>Controller</code> (<code>RLController</code>) so it drops straight into the benchmark and the UIs —
 the "model-based vs learned" comparison on identical physics.</p>
 <h2 id="nd-10-swing-up-visualization-the-elevated-cart-pole-model-2026-05-27">ND-10 — Swing-up visualization: the elevated cart-pole model (2026-05-27)<a class="headerlink" href="#nd-10-swing-up-visualization-the-elevated-cart-pole-model-2026-05-27" title="Permanent link">&para;</a></h2>
@@ -840,22 +842,23 @@ Cause is purely geometric, not dynamics: the ground-robot model (<code>segway.xm
 wheel height (<code>base</code> at z = 0.1), so when the body rotates <em>below</em> the pivot during swing-up
 (it must travel 180° from hanging to upright) the ~0.5 m body clips the floor at z = 0.</p>
 <p><strong>Fix:</strong> swing-up is the classic <em>cart-pole</em> maneuver, properly drawn with an <strong>elevated
-pivot</strong>. Added <code>models/assets/cartpole.xml</code> — a cart on a raised horizontal rail (pivot at
+pivot</strong>. I added <code>models/assets/cartpole.xml</code> — a cart on a raised horizontal rail (pivot at
 z = 0.7) with the <em>same</em> body/joint/actuator names, so <code>MuJoCoPlant._apply_params</code> and the
 <code>[τ/r, −τ]</code> torque mapping are unchanged. The <strong>dynamics are identical</strong> (gravity is uniform
 and the slide is horizontal, so absolute height doesn't enter the EOM) — only the rendering
 geometry differs, and the body now swings freely above the floor. <code>MuJoCoPlant</code>,
 <code>simulate_mujoco</code>, <code>render_rollout</code>, and <code>live_view</code> all take an optional <code>xml_path</code>; the
-swing-up renders and the GUI's swing-up View/Render pass <code>CARTPOLE_PATH</code>. Guarded by
+swing-up renders and the GUI's swing-up View/Render pass <code>CARTPOLE_PATH</code>. I guard this with
 <code>tests/test_mujoco.py::test_cartpole_swingup_model_clears_floor</code>.</p>
 <h2 id="nd-11-gui-redesign-2026-05-27">ND-11 — GUI redesign (2026-05-27)<a class="headerlink" href="#nd-11-gui-redesign-2026-05-27" title="Permanent link">&para;</a></h2>
-<p>Rebuilt <code>apps/desktop_gui.py</code> for usability while keeping every feature. Configuration is
-grouped into a <strong>tabbed panel</strong> (🎛 Controller · 🤖 Robot · 🌍 Scenario) instead of one long
-scroll; a <strong>persistent action bar</strong> (Run / View-3D / ROA / Tune / Compare / Render) with an
-<strong>indeterminate progress bar</strong> sits below it; results are in <strong>tabbed panes</strong> (📈 Response ·
-🧮 Metrics cards · ◌ ROA). Added per-controller <strong>descriptions</strong>, <strong>hover tooltips</strong>, a
-<strong>reset-to-defaults</strong> button, and a <strong>Compare-all</strong> overlay. All parameter logic still comes
-from the shared <code>apps/_common.py</code>, so the desktop GUI and Streamlit dashboard stay identical.</p>
+<p>I rebuilt <code>apps/desktop_gui.py</code> for usability while keeping every feature. I grouped the
+configuration into a <strong>tabbed panel</strong> (🎛 Controller · 🤖 Robot · 🌍 Scenario) instead of one
+long scroll; put a <strong>persistent action bar</strong> (Run / View-3D / ROA / Tune / Compare / Render)
+with an <strong>indeterminate progress bar</strong> below it; and moved results into <strong>tabbed panes</strong>
+(📈 Response · 🧮 Metrics cards · ◌ ROA). I added per-controller <strong>descriptions</strong>, <strong>hover
+tooltips</strong>, a <strong>reset-to-defaults</strong> button, and a <strong>Compare-all</strong> overlay. All parameter
+logic still comes from the shared <code>apps/_common.py</code>, so the desktop GUI and Streamlit
+dashboard stay identical.</p>
 
 
 
