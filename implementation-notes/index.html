@@ -768,7 +768,7 @@ performance</em> gain, <strong>not</strong> parametric robustness. Measured clos
 Carlo test (±60% mass etc. from a 1.0 rad tilt) the aggressive H∞ is <strong>less</strong> robust than
 LQR; backing γ off (larger <code>gamma_margin</code>) recovers parametric robustness as H∞ → H₂/LQR
 (margin 10 → 80%, matching LQR). Default <code>gamma_margin=2.0</code> balances the two. These are
-different robustness axes — an honest, instructive result rather than "H∞ is just better."</p>
+different robustness axes — an instructive result rather than "H∞ is just better."</p>
 <h2 id="nd-7-why-pole-placement-looked-bad-and-the-fix-2026-05-25">ND-7 — Why pole placement looked bad, and the fix (2026-05-25)<a class="headerlink" href="#nd-7-why-pole-placement-looked-bad-and-the-fix-2026-05-25" title="Permanent link">&para;</a></h2>
 <p>The benchmark first showed pole placement at <strong>37% robustness / 64% ROA</strong> — much worse than
 LQR. Investigation (a pole-set sweep, see <code>git</code> history / the analysis probes) showed this
