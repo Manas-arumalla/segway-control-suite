@@ -8,7 +8,7 @@ rough effort (S/M/L). Items marked ⭐ are the recommended high-value additions.
 
 | Method | Why it elevates the project | Effort |
 |---|---|---|
-| ⭐ **LQG** (LQR + Kalman) | The "correct" optimal output-feedback controller; pairs the LQR with the Kalman estimator we already built. Completes the optimal-control story. | S |
+| ⭐ **LQG** (LQR + Kalman) | The "correct" optimal output-feedback controller; pairs the LQR with the Kalman estimator I already built. Completes the optimal-control story. | S |
 | ⭐ **Cascaded PID** (position outer loop → tilt inner loop) | Fixes the tilt-only PID's position drift; a fair, strong classical baseline and a great before/after story. | S |
 | ⭐ **iLQR / DDP** (trajectory optimization) | Modern nonlinear optimal control; computes an optimal swing-up trajectory. Genuinely advanced and visually spectacular. | M |
 | **Feedback linearization / partial FL** | Cancels nonlinearities for large-angle control; textbook nonlinear control. | M |
@@ -51,7 +51,7 @@ Already in use: **MuJoCo** (sim/render), **Gymnasium** + **Stable-Baselines3** (
 **CVXPY/OSQP** (MPC), **python-control / SciPy** (classical), **SymPy** (derivation),
 **DEAP** (GA). These are the right, well-supported choices. Considered but *not* adopting
 now (cost > benefit at this stage): ROS 2 (overkill for a single sim), Drake (heavy),
-acados (hard to install), Pinocchio (not needed for 2-DOF). Revisit ROS 2 only if/when we
+acados (hard to install), Pinocchio (not needed for 2-DOF). Revisit ROS 2 only if/when I
 target real hardware.
 
 ## Suggested implementation order

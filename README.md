@@ -246,7 +246,7 @@ and leave `Control GUI/` untouched.
 If you use this project, please cite it (see [`CITATION.cff`](CITATION.cff)):
 
 ```
-Arumalla, M. R. (2026). Segway Control Suite (v0.1.0) [Software].
+Manas Reddy Arumalla (2026). Segway Control Suite (v0.1.0) [Software].
 ```
 
 ## License

@@ -1,6 +1,6 @@
 # Implementation Notes
 
-Technical decisions, derivations, and rationale. This is the "why" companion to the code.
+My technical decisions, derivations, and rationale — the "why" companion to the code.
 
 ---
 
@@ -24,10 +24,10 @@ The v2 canonical model is the **torque-input wheeled inverted pendulum**:
 - A single motor torque `τ` produces a horizontal traction force `F = τ/r` on the base and,
   by Newton's third law, a reaction torque `−τ` on the body about the axle.
 
-This was chosen because (a) it is the more physically faithful description of a real
+I chose this because (a) it is the more physically faithful description of a real
 self-balancing robot driven by wheel motors, and (b) it matches the dual-actuator mapping
-already used in the better legacy runner. It also reduces cleanly to the classic cart-pole
-and provides a natural upgrade path to a true rolling-contact wheel model.
+I already used in the better legacy runner. It also reduces cleanly to the classic cart-pole
+and gives me a natural upgrade path to a true rolling-contact wheel model.
 
 ### Equations of motion (full nonlinear)
 With `M = m_base + 2·m_wheel`, body mass `m`, COM distance `l`, body inertia `I`,
@@ -56,7 +56,7 @@ B =     [ (I+m·l²)/r + m·l ) / D  ]
 ```
 
 This reproduces `segway_dynamics.py`'s `A`/`B` exactly — confirming that file was the
-correct one. It is **machine-verified** two ways in `tests/test_dynamics.py`:
+correct one. I machine-verify it two ways in `tests/test_dynamics.py`:
 1. against a finite-difference Jacobian of the nonlinear `f` (numeric linearization), and
 2. against an independent SymPy derivation in `src/segway/models/symbolic.py`.
 
@@ -68,10 +68,11 @@ real eigenvalue from the `(M+m)·m·g·l/D` gravity term) and the pair `(A,B)` i
 
 ---
 
-## ND-2 — Two simulation backends (planned, 2026-05-25)
+## ND-2 — Two simulation backends (2026-05-25)
 
-The benchmark must be fast, deterministic, and headless (CI-friendly), but demos want
-high-fidelity 3D. So there are two backends sharing the *same* controllers/metrics:
+I needed the benchmark to be fast, deterministic, and headless (CI-friendly), but I also
+wanted high-fidelity 3D for demos, so I built two backends that share the *same*
+controllers/metrics:
 
 - **Analytic backend** (default): fixed-step RK4 integration of the nonlinear `f`. Pure
   NumPy/SciPy, no display, fully deterministic. This drives tests and benchmarks.
@@ -99,8 +100,8 @@ uncontrolled cyclic mode → a marginal pole at the origin). The cascaded contro
 `theta_cmd = clip(kx·x + kv·ẋ, ±θ_cmd_max)` (with `kx, kv < 0`), and an **inner PD(+I)**
 loop that drives the tilt to that command. Time-scale separation matters: a weakly damped
 inner loop produces a slow inter-loop **limit cycle** (~0.15 rad). Raising the inner
-derivative gain (`kd≈45`) restores clean settling. Result: holds position to ~0.12 m where
-plain PID drifts ~2.8 m — verified in `tests/test_advanced_controllers.py`.
+derivative gain (`kd≈45`) restores clean settling. The result holds position to ~0.12 m
+where the plain PID drifts ~2.8 m — which I verify in `tests/test_advanced_controllers.py`.
 
 ## ND-5 — Energy-based swing-up (2026-05-25)
 
@@ -109,19 +110,20 @@ A hybrid controller: an **energy-shaping** law swings the body up from hanging, 
 
 Key subtlety for *this* plant: the textbook Åström–Furuta law assumes the input is **cart
 acceleration** `a`, giving `dE/dt = −m l a cos θ · θ̇`, so `a = k (E − E_top) θ̇ cos θ`
-pumps energy toward the upright value `E_top = m g l`. Our actual input is **motor torque**;
-applying the energy law *directly as torque* fails — the `τ→F=τ/r` force amplification (×10)
-just throws the cart away. The fix is to command a desired cart acceleration and convert it
-to torque via `τ = (M+m)·a·r`. Two extra terms (`−k_cart·ẋ − k_pos·x`) keep the cart from
-running away during pumping, and the balancer holds the position *where it caught* (not the
-origin) so it isn't fighting a large position error at the handoff. From hanging it reaches
-upright (min |θ| < 0.05) and is caught — verified in the test suite. Swing-up is a different
+pumps energy toward the upright value `E_top = m g l`. But the actual input here is **motor
+torque**; applying the energy law *directly as torque* fails — the `τ→F=τ/r` force
+amplification (×10) just throws the cart away. I fix this by commanding a desired cart
+acceleration and converting it to torque via `τ = (M+m)·a·r`. I add two terms
+(`−k_cart·ẋ − k_pos·x`) to keep the cart from running away during pumping, and I have the
+balancer hold the position *where it caught* (not the origin) so it isn't fighting a large
+position error at the handoff. From hanging it reaches upright (min |θ| < 0.05) and is
+caught — which I verify in the test suite. Swing-up is a different
 task from regulation, so it is **excluded from the regulation benchmark** (`REGULATORS`) and
 showcased on its own (`assets/swingup.gif`).
 
 ## ND-6 — H∞ robust control (2026-05-25)
 
-Implemented **state-feedback H∞** from first principles (no `slycot`): the suboptimal-γ
+I implemented **state-feedback H∞** from first principles (no `slycot`): the suboptimal-γ
 controller solves the H∞ algebraic Riccati equation via its **Hamiltonian matrix** (stable
 invariant subspace → `X = U₂U₁⁻¹`), with a **γ-bisection** toward the smallest feasible γ
 (then backed off by `gamma_margin` for margin). `K = R⁻¹B₂ᵀX`.
@@ -137,8 +139,8 @@ different robustness axes — an instructive result rather than "H∞ is just be
 ## ND-7 — Why pole placement looked bad, and the fix (2026-05-25)
 
 The benchmark first showed pole placement at **37% robustness / 64% ROA** — much worse than
-LQR. Investigation (a pole-set sweep, see `git` history / the analysis probes) showed this
-is **entirely a pole-selection problem**, not a code bug:
+LQR. I investigated with a pole-set sweep, which showed this is **entirely a pole-selection
+problem**, not a code bug:
 
 | poles | robustness | ROA |
 |---|---|---|
@@ -164,8 +166,8 @@ Direct model-reference adaptive control augmenting the LQR baseline:
 ``x_m_dot = A_m x_m`` (``A_m = A - B K``), and the weights follow the Lyapunov-stable law
 ``theta_hat_dot = gamma * x * (B^T P e) - sigma * theta_hat`` (``P`` solves
 ``A_m^T P + P A_m = -Q``; sigma-modification adds robustness). Because ``theta_hat = 0``
-recovers the LQR baseline exactly, adaptation can only help. Verified to balance the nominal
-plant and a +60% mass / +30% length / +60% inertia **mismatched** plant.
+recovers the LQR baseline exactly, adaptation can only help. I verified it balances the
+nominal plant and a +60% mass / +30% length / +60% inertia **mismatched** plant.
 
 ## ND-9 — Reinforcement learning (PPO) (2026-05-25)
 
@@ -174,7 +176,7 @@ A Gymnasium env (`segway/envs/gym_env.py`) wraps the *same* nonlinear plant (RK4
 and effort; episodes end on fall or cart-limit. **Domain randomization** perturbs the
 physical parameters each episode (±40% mass/inertia, ±25% length, ±60% damping), producing
 a policy robust to model error — the RL analogue of the Monte-Carlo robustness benchmark.
-Trained with Stable-Baselines3 PPO (`scripts/train_rl.py`); the learned policy is wrapped as
+I train it with Stable-Baselines3 PPO (`scripts/train_rl.py`) and wrap the learned policy as
 a normal `Controller` (`RLController`) so it drops straight into the benchmark and the UIs —
 the "model-based vs learned" comparison on identical physics.
 
@@ -186,21 +188,22 @@ wheel height (`base` at z = 0.1), so when the body rotates *below* the pivot dur
 (it must travel 180° from hanging to upright) the ~0.5 m body clips the floor at z = 0.
 
 **Fix:** swing-up is the classic *cart-pole* maneuver, properly drawn with an **elevated
-pivot**. Added `models/assets/cartpole.xml` — a cart on a raised horizontal rail (pivot at
+pivot**. I added `models/assets/cartpole.xml` — a cart on a raised horizontal rail (pivot at
 z = 0.7) with the *same* body/joint/actuator names, so `MuJoCoPlant._apply_params` and the
 `[τ/r, −τ]` torque mapping are unchanged. The **dynamics are identical** (gravity is uniform
 and the slide is horizontal, so absolute height doesn't enter the EOM) — only the rendering
 geometry differs, and the body now swings freely above the floor. `MuJoCoPlant`,
 `simulate_mujoco`, `render_rollout`, and `live_view` all take an optional `xml_path`; the
-swing-up renders and the GUI's swing-up View/Render pass `CARTPOLE_PATH`. Guarded by
+swing-up renders and the GUI's swing-up View/Render pass `CARTPOLE_PATH`. I guard this with
 `tests/test_mujoco.py::test_cartpole_swingup_model_clears_floor`.
 
 ## ND-11 — GUI redesign (2026-05-27)
 
-Rebuilt `apps/desktop_gui.py` for usability while keeping every feature. Configuration is
-grouped into a **tabbed panel** (🎛 Controller · 🤖 Robot · 🌍 Scenario) instead of one long
-scroll; a **persistent action bar** (Run / View-3D / ROA / Tune / Compare / Render) with an
-**indeterminate progress bar** sits below it; results are in **tabbed panes** (📈 Response ·
-🧮 Metrics cards · ◌ ROA). Added per-controller **descriptions**, **hover tooltips**, a
-**reset-to-defaults** button, and a **Compare-all** overlay. All parameter logic still comes
-from the shared `apps/_common.py`, so the desktop GUI and Streamlit dashboard stay identical.
+I rebuilt `apps/desktop_gui.py` for usability while keeping every feature. I grouped the
+configuration into a **tabbed panel** (🎛 Controller · 🤖 Robot · 🌍 Scenario) instead of one
+long scroll; put a **persistent action bar** (Run / View-3D / ROA / Tune / Compare / Render)
+with an **indeterminate progress bar** below it; and moved results into **tabbed panes**
+(📈 Response · 🧮 Metrics cards · ◌ ROA). I added per-controller **descriptions**, **hover
+tooltips**, a **reset-to-defaults** button, and a **Compare-all** overlay. All parameter
+logic still comes from the shared `apps/_common.py`, so the desktop GUI and Streamlit
+dashboard stay identical.
