@@ -1,7 +1,7 @@
 # Segway Control Suite
 
 A rigorous, reproducible benchmark of control strategies for a **self-balancing wheeled
-inverted pendulum** — from classical to learned — with honest dynamics, realistic sensing,
+inverted pendulum** — from classical to learned — with validated dynamics, realistic sensing,
 quantitative head-to-head metrics, and publication-quality visuals.
 
 <div align="center">

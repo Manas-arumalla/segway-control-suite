@@ -29,12 +29,9 @@
     <geom name="floor" type="plane" pos="0 0 0" size="20 20 0.1" material="grid"
           contype="0" conaffinity="0"/>
 
-    <!-- raised horizontal rail the cart slides along -->
-    <geom name="rail" type="capsule" fromto="-3 0 0.7 3 0 0.7" size="0.018" material="rail"
-          contype="0" conaffinity="0"/>
-    <geom name="postL" type="capsule" fromto="-3 0 0 -3 0 0.7" size="0.02" material="rail"
-          contype="0" conaffinity="0"/>
-    <geom name="postR" type="capsule" fromto="3 0 0 3 0 0.7" size="0.02" material="rail"
+    <!-- Long raised horizontal rail the cart slides along. It extends far beyond the cart's
+         travel during swing-up so the cart never appears to run off the end. -->
+    <geom name="rail" type="capsule" fromto="-40 0 0.7 40 0 0.7" size="0.018" material="rail"
           contype="0" conaffinity="0"/>
 
     <body name="base" pos="0 0 0.7">

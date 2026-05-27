@@ -28,7 +28,7 @@
 
 - [Overview](#overview) · [Highlights](#highlights) · [Controllers](#controllers)
 - [Demos](#demos) · [Realistic sensing](#realistic-sensing--state-estimation) · [Benchmark](#benchmark-results) · [Auto-tuning](#auto-tuning)
-- [The model](#the-model-honest-description) · [Quickstart](#quickstart) · [Apps](#interactive-apps)
+- [The model](#the-model) · [Quickstart](#quickstart) · [Apps](#interactive-apps)
 - [Layout](#repository-layout) · [Docs](#documentation) · [Contributing](#contributing) · [Citation](#citation) · [License](#license)
 
 ## Overview
@@ -75,7 +75,7 @@ metrics, stability analysis, and publication-quality visuals.
 **Learned vs model-based:** the PPO policy (trained with domain randomization) matches LQR
 at **100% robustness in-distribution** (±40% params, 0.3 rad) but fails the 1.0 rad stress
 test — *outside its training envelope* — whereas the model-based controllers extrapolate. An
-honest, instructive contrast rather than a leaderboard.
+instructive contrast rather than a leaderboard.
 
 ## Demos
 
@@ -140,7 +140,7 @@ to aggressive poles), which is exactly why optimal/cost-based methods are prefer
 | cascaded_pid | −7% | 100% → 100% |
 | pole_placement | −31% | 38% → 20% ⚠️ (overfits) |
 
-## The model (honest description)
+## The model
 
 The plant is a **wheeled inverted pendulum (WIP)** with state `[x, ẋ, θ, θ̇]` and a single
 control input `u = τ` (motor torque):

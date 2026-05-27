@@ -132,7 +132,7 @@ performance* gain, **not** parametric robustness. Measured closed-loop H∞ norm
 Carlo test (±60% mass etc. from a 1.0 rad tilt) the aggressive H∞ is **less** robust than
 LQR; backing γ off (larger `gamma_margin`) recovers parametric robustness as H∞ → H₂/LQR
 (margin 10 → 80%, matching LQR). Default `gamma_margin=2.0` balances the two. These are
-different robustness axes — an honest, instructive result rather than "H∞ is just better."
+different robustness axes — an instructive result rather than "H∞ is just better."
 
 ## ND-7 — Why pole placement looked bad, and the fix (2026-05-25)
 

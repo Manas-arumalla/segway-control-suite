@@ -7,7 +7,7 @@ throughout; all new work lives under `src/segway/` and friends.
 ## Guiding thesis
 
 > A rigorous, reproducible benchmark of control strategies for a self-balancing robot —
-> from classical to learned — with honest dynamics, realistic sensing, quantitative
+> from classical to learned — with validated dynamics, realistic sensing, quantitative
 > head-to-head metrics, and publication-quality visuals.
 
 ## Phases
