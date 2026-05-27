@@ -456,10 +456,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#recommended-build-order-folded-into-phase-4" class="md-nav__link">
+  <a href="#suggested-implementation-order" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Recommended build order (folded into Phase 4)
+        Suggested implementation order
       
     </span>
   </a>
@@ -699,14 +699,14 @@ becomes meaningful once the model is extended to a planar robot (x, y, heading):
 now (cost &gt; benefit at this stage): ROS 2 (overkill for a single sim), Drake (heavy),
 acados (hard to install), Pinocchio (not needed for 2-DOF). Revisit ROS 2 only if/when we
 target real hardware.</p>
-<h2 id="recommended-build-order-folded-into-phase-4">Recommended build order (folded into Phase 4)<a class="headerlink" href="#recommended-build-order-folded-into-phase-4" title="Permanent link">&para;</a></h2>
+<h2 id="suggested-implementation-order">Suggested implementation order<a class="headerlink" href="#suggested-implementation-order" title="Permanent link">&para;</a></h2>
 <ol>
-<li>⭐ LQG and ⭐ Cascaded PID (quick wins, enrich the benchmark immediately).</li>
-<li>⭐ Energy swing-up + hybrid switch, then ⭐ iLQR swing-up (the "wow" demos).</li>
-<li>⭐ H∞ and ⭐ Adaptive (MRAC) (robustness narrative).</li>
-<li>⭐ RL: PPO + ⭐ domain randomization (+ SAC if time).</li>
-<li>⭐ Optuna tuning (+ CMA-ES comparison).</li>
-<li>⭐ Min-jerk reference tracking now; defer A*/RRT to the <strong>2D extension</strong> (future phase).</li>
+<li>⭐ LQG and ⭐ Cascaded PID (quick wins that enrich the benchmark immediately).</li>
+<li>⭐ Energy swing-up + hybrid switch, then ⭐ iLQR swing-up (the standout demos).</li>
+<li>⭐ H∞ and ⭐ Adaptive (MRAC) (the robustness story).</li>
+<li>⭐ RL: PPO + ⭐ domain randomization (with SAC as an option).</li>
+<li>⭐ Optuna tuning (with a CMA-ES comparison).</li>
+<li>⭐ Min-jerk reference tracking; defer A*/RRT until the <strong>2D extension</strong>.</li>
 </ol>
 
 
