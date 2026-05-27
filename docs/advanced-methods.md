@@ -54,11 +54,11 @@ now (cost > benefit at this stage): ROS 2 (overkill for a single sim), Drake (he
 acados (hard to install), Pinocchio (not needed for 2-DOF). Revisit ROS 2 only if/when we
 target real hardware.
 
-## Recommended build order (folded into Phase 4)
+## Suggested implementation order
 
-1. ⭐ LQG and ⭐ Cascaded PID (quick wins, enrich the benchmark immediately).
-2. ⭐ Energy swing-up + hybrid switch, then ⭐ iLQR swing-up (the "wow" demos).
-3. ⭐ H∞ and ⭐ Adaptive (MRAC) (robustness narrative).
-4. ⭐ RL: PPO + ⭐ domain randomization (+ SAC if time).
-5. ⭐ Optuna tuning (+ CMA-ES comparison).
-6. ⭐ Min-jerk reference tracking now; defer A\*/RRT to the **2D extension** (future phase).
+1. ⭐ LQG and ⭐ Cascaded PID (quick wins that enrich the benchmark immediately).
+2. ⭐ Energy swing-up + hybrid switch, then ⭐ iLQR swing-up (the standout demos).
+3. ⭐ H∞ and ⭐ Adaptive (MRAC) (the robustness story).
+4. ⭐ RL: PPO + ⭐ domain randomization (with SAC as an option).
+5. ⭐ Optuna tuning (with a CMA-ES comparison).
+6. ⭐ Min-jerk reference tracking; defer A\*/RRT until the **2D extension**.

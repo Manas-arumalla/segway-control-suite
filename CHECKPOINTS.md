@@ -66,7 +66,7 @@ Works:
 - Full suite: **30 passed**.
 
 Known gaps:
-- No automated benchmark report / ROA / Monte-Carlo yet (Phase 3).
+- No automated benchmark report / ROA / Monte-Carlo yet.
 - Advanced controllers (H∞, swing-up, RL) and the UIs are not built yet (Phases 4–5).
 
 Reproduce:
@@ -92,8 +92,8 @@ Works:
 - Full suite: **39 passed**.
 
 Known gaps:
-- H∞, Adaptive (MRAC), RL (PPO), iLQR not yet built (Phase 4 cont.).
-- No UIs or docs site yet (Phase 5).
+- H∞, Adaptive (MRAC), RL (PPO), and iLQR not yet built.
+- No UIs or docs site yet.
 
 Reproduce:
 ```bash
@@ -121,7 +121,7 @@ Works:
 
 Known gaps:
 - Adaptive (MRAC), RL (PPO), iLQR not built yet.
-- No UIs or docs site yet (Phase 5).
+- No UIs or docs site yet.
 
 Reproduce:
 ```bash
@@ -132,7 +132,7 @@ python benchmarks/tune_all.py                # default-vs-tuned report
 
 ---
 
-## CP-5 — Phase 4 complete: full controller suite (2026-05-25)
+## CP-5 — Full controller suite (2026-05-25)
 
 **State:** 8 regulators + swing-up + a learned RL policy + iLQR planner + adaptive control.
 The control breadth is now exceptional: classical, optimal, predictive, robust, nonlinear,
@@ -147,7 +147,7 @@ Works:
 - Full suite: **49 passed**, ruff clean.
 
 Known gaps:
-- No interactive UIs or docs site yet (Phase 5).
+- No interactive UIs or docs site yet.
 
 Reproduce:
 ```bash

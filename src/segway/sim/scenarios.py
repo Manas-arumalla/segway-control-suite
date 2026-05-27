@@ -70,7 +70,7 @@ class Scenario:
         return cls(name=f"setpoint_{x_ref:g}m", initial_tilt=tilt, reference=(x_ref, 0.0, 0.0, 0.0))
 
 
-# A small standard battery used by the benchmark harness (extended in Phase 3).
+# A small standard battery used by the benchmark harness.
 STANDARD_SCENARIOS: dict[str, Scenario] = {
     "balance_small": Scenario.balance(tilt=0.1),
     "balance_large": Scenario.balance(tilt=0.3),

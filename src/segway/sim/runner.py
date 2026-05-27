@@ -2,8 +2,8 @@
 
 This is the default backend: pure NumPy/SciPy, deterministic, no display. It integrates the
 full nonlinear plant while a controller acts through a zero-order hold, and returns a
-:class:`Trajectory` that knows how to score itself. A MuJoCo backend (Phase 2) shares the
-same controller and metric code for high-fidelity visualization and cross-checking.
+:class:`Trajectory` that knows how to score itself. The MuJoCo backend shares the same
+controller and metric code for high-fidelity visualization and cross-checking.
 """
 
 from __future__ import annotations

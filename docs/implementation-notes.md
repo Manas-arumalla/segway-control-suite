@@ -75,7 +75,7 @@ high-fidelity 3D. So there are two backends sharing the *same* controllers/metri
 
 - **Analytic backend** (default): fixed-step RK4 integration of the nonlinear `f`. Pure
   NumPy/SciPy, no display, fully deterministic. This drives tests and benchmarks.
-- **MuJoCo backend** (Phase 2): the legacy `segway.xml`, used for visualization and as an
+- **MuJoCo backend**: the `segway.xml` articulated model, used for visualization and as an
   independent physics cross-check of the analytic model.
 
 ---
