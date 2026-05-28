@@ -8,8 +8,13 @@ from __future__ import annotations
 
 import numpy as np
 
-# NumPy 2.0 renamed trapz -> trapezoid; support both.
-_trapz = getattr(np, "trapezoid", np.trapz)  # noqa: NPY201
+# NumPy 2.0 renamed trapz -> trapezoid (and later removed trapz). Prefer the new name and only
+# fall back to the old one on NumPy < 2.0 — never reference np.trapz when trapezoid exists, or
+# the eager default would crash at import on NumPy versions that dropped trapz.
+try:
+    _trapz = np.trapezoid          # NumPy >= 2.0
+except AttributeError:             # pragma: no cover -- NumPy < 2.0
+    _trapz = np.trapz  # noqa: NPY201
 
 
 def compute_metrics(
