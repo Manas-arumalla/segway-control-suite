@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-import matplotlib
+import pytest
+
+pytest.importorskip("matplotlib")  # the viz extra; skip cleanly where it isn't installed
+import matplotlib  # noqa: E402
 
 matplotlib.use("Agg")
 import matplotlib as mpl  # noqa: E402
-import pytest  # noqa: E402
 
 from segway.config import SimConfig, TWIPParams  # noqa: E402
 from segway.navigation import build_scenario, build_terrain, navigate  # noqa: E402

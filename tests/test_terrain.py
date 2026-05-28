@@ -45,12 +45,17 @@ def test_generation_is_deterministic():
 
 
 # ===== heightfield traversal (MuJoCo) ====================================
-mj = pytest.importorskip("mujoco")
+# These modules import cleanly without MuJoCo (it loads lazily only when a plant is built), so
+# the pure terrain tests above always run; the heightfield tests below skip without the sim extra.
+import importlib.util  # noqa: E402
 
 from segway.config import SimConfig, TWIPParams  # noqa: E402
 from segway.navigation import Obstacle, World, navigate  # noqa: E402
 from segway.navigation.control import TWIPController  # noqa: E402
 from segway.sim.mujoco_terrain import MuJoCoTWIPTerrain, simulate_twip_terrain  # noqa: E402
+
+requires_mujoco = pytest.mark.skipif(
+    importlib.util.find_spec("mujoco") is None, reason="needs the sim extra (mujoco)")
 
 
 def _drive(terrain_name, v=0.4, duration=5.0, x0=(2.0, 4.0)):
@@ -62,6 +67,7 @@ def _drive(terrain_name, v=0.4, duration=5.0, x0=(2.0, 4.0)):
     return simulate_twip_terrain(p, ctrl, lambda tt, s: (v, 0.0), t, sim=sim, x0=start)
 
 
+@requires_mujoco
 def test_spawn_sits_on_surface():
     p = TWIPParams()
     t = build_terrain("moderate")
@@ -71,6 +77,7 @@ def test_spawn_sits_on_surface():
     assert abs(float(plant.data.qpos[2]) - expected) < 1e-6
 
 
+@requires_mujoco
 @pytest.mark.parametrize("name", ["gentle", "moderate", "rough"])
 def test_balances_and_drives_over_terrain(name):
     tr = _drive(name)
@@ -79,12 +86,14 @@ def test_balances_and_drives_over_terrain(name):
     assert np.max(np.abs(tr.theta)) < 0.4
 
 
+@requires_mujoco
 def test_climbs_a_ramp_without_falling():
     tr = _drive("ramp", v=0.4, duration=5.0)
     assert not tr.fell
     assert tr.x[-1] - 2.0 > 0.3        # still climbs the grade, just slower
 
 
+@requires_mujoco
 def test_navigate_to_goal_over_terrain_with_obstacle():
     world = World(width=8.0, height=8.0, resolution=0.2, robot_radius=0.25,
                   obstacles=[Obstacle(4.0, 4.0, 0.6)])

@@ -75,6 +75,7 @@ def test_metrics_are_populated():
 
 
 def test_plot_navigation_renders_headless():
+    pytest.importorskip("matplotlib")  # the viz extra
     import matplotlib
     matplotlib.use("Agg")
     from segway.navigation.plot import plot_navigation
