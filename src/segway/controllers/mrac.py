@@ -66,7 +66,7 @@ class MRACController(Controller):
         if self._last_t is not None and t > self._last_t:
             dt = t - self._last_t
             e = x - self.xm
-            bPe = float(self.B.T @ self.P @ e)
+            bPe = float((self.B.T @ self.P @ e).item())  # size-1 array → scalar (NumPy 2.3-safe)
             self.theta = self.theta + dt * (self.gamma * x * bPe - self.sigma * self.theta)
             self.xm = self.xm + dt * (self.Am @ self.xm)
         self._last_t = t

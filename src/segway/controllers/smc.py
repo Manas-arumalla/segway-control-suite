@@ -37,7 +37,9 @@ class SMCController(Controller):
         self.K_smc = float(K)
         self.phi = float(phi)
 
-        self.CB = float(self.coeffs @ self.B)  # scalar c^T B
+        # B is a column vector, so c^T B is a size-1 array; .item() works across NumPy versions
+        # (NumPy >= 2.3 rejects float() on non-0-d arrays).
+        self.CB = float((self.coeffs @ self.B).item())  # scalar c^T B
         if abs(self.CB) < 1e-12:
             raise ValueError("sliding surface is not well-posed: c^T B is ~0; choose other lambda")
         self.CA = self.coeffs @ self.A  # (4,)
