@@ -18,7 +18,7 @@
 
 </div>
 
-> [`Control GUI/`](Control%20GUI/) for reference).
+> [`Control GUI/`](Control%20GUI/) for reference.
 
 ---
 
