@@ -28,7 +28,7 @@
 
 - [Overview](#overview) · [Highlights](#highlights) · [Controllers](#controllers)
 - [Demos](#demos) · [Realistic sensing](#realistic-sensing--state-estimation) · [Benchmark](#benchmark-results) · [Auto-tuning](#auto-tuning)
-- [The model](#the-model) · [Quickstart](#quickstart) · [Apps](#interactive-apps)
+- [Navigation](#navigation) · [The model](#the-model) · [Quickstart](#quickstart) · [Apps](#interactive-apps)
 - [Layout](#repository-layout) · [Docs](#documentation) · [Contributing](#contributing) · [Citation](#citation) · [License](#license)
 
 ## Overview
@@ -53,6 +53,9 @@ metrics, stability analysis, and publication-quality visuals.
 - **Auto-tuning** — Optuna (TPE / CMA-ES) and a genetic algorithm over a shared objective.
 - **Two simulation backends** — a fast headless RK4 integrator and a high-fidelity MuJoCo
   model (also a physics cross-check and the 3D renderer).
+- **Navigation in the plane** — a two-wheeled robot drives to goals, around obstacles, and over
+  uneven terrain while balancing, with a composable *planner × follower × controller* stack and
+  an end-to-end learned navigator.
 - **Two interactive front-ends** — a desktop control center and a web dashboard sharing one
   engine.
 
@@ -140,6 +143,58 @@ to aggressive poles), which is exactly why optimal/cost-based methods are prefer
 | cascaded_pid | −7% | 100% → 100% |
 | pole_placement | −31% | 38% → 20% ⚠️ (overfits) |
 
+## Navigation
+
+The balancer goes from the line into the plane: a **two-wheeled inverted pendulum (TWIP)**
+drives to goal points, **around obstacles**, and over **uneven terrain** — while staying
+upright. The stack is fully composable — at run time you pick a
+**balance controller × global planner × path follower**.
+
+<div align="center"><img src="assets/nav_maps.png" width="720" alt="Top-down goal navigation around obstacles on four maps"/></div>
+
+<div align="center">
+  <img src="assets/nav_twip_3d.gif" width="420" alt="Balancing TWIP navigating a slalom of obstacles in 3-D"/>
+  <img src="assets/nav_terrain_3d.gif" width="420" alt="Balancing TWIP driving over uneven heightfield terrain"/>
+</div>
+
+<sub><b>Left:</b> the balancing robot weaving through a planned route in full MuJoCo physics.
+&nbsp; <b>Right:</b> the same robot driving over an uneven <b>heightfield</b> — no terrain
+sensing, the slopes are pure disturbances its balancer rejects.</sub>
+
+Every run comes with a full analysis figure — the speed-coloured route alongside speed-,
+balance-, and yaw-tracking and the wheel torques:
+
+<div align="center"><img src="assets/nav_analysis.png" width="760" alt="Per-run navigation analysis: speed-coloured route plus tracking and stability panels"/></div>
+
+- **Planners** — A*, Dijkstra, RRT, RRT*, PRM, potential field (on an inflated occupancy grid).
+- **Followers** — pure pursuit, Stanley, DWA, a sampling-MPC tracker, vector field.
+- **Inner loop** — reuses *any* of the balancing controllers above for balance + speed, with a
+  yaw loop for heading; the decoupled TWIP keeps the longitudinal block identical to the 1-D
+  plant.
+- **Real rolling-contact robot** — a free-floating MuJoCo chassis on two driven wheels that roll
+  through frictional contact; the *same* analytic-model controller balances and drives it, an
+  independent check that the decoupling holds.
+- **Learned navigation** — an end-to-end goal-conditioned PPO policy (one network instead of
+  planner + follower), competitive with the classical stack on open-space goals.
+
+`python benchmarks/run_nav.py` sweeps the stack across maps and emits a success-matrix figure:
+
+<div align="center"><img src="assets/nav_benchmark.png" width="820" alt="Navigation benchmark: success matrix per planner, follower, and balance controller across maps"/></div>
+
+Headline findings: **all six full-state controllers** drive navigation on every map;
+grid/sampling planners solve every map while the **potential field stalls** in local minima;
+pure-pursuit / Stanley / MPC followers solve every map while **reactive DWA / vector-field
+stall** in tight doorways.
+
+```bash
+segway nav --planner a_star --follower pure_pursuit --map slalom
+segway nav --map corridor --backend mujoco --terrain rough   # full physics, uneven ground
+```
+
+Both the **desktop GUI** and the **web dashboard** have a Navigation tab — pick the stack, a
+map (or **draw a custom one**), the backend, and the terrain, then watch it drive. See
+[`docs/navigation.md`](docs/navigation.md) for the full design.
+
 ## The model
 
 The plant is a **wheeled inverted pendulum (WIP)** with state `[x, ẋ, θ, θ̇]` and a single
@@ -151,9 +206,10 @@ control input `u = τ` (motor torque):
   the base, and by Newton's third law an equal-and-opposite reaction torque `−τ` acts on the
   body about the axle.
 
-**Modeling assumptions:** wheels are a rolling *abstraction* — their only dynamical effect is
-the `τ → F` conversion; wheel spin inertia and slip are neglected. Motion is planar, damping
-is viscous, and a full rolling-contact wheel model is a documented future extension. The
+**Modeling assumptions:** for the 1-D balancing study the wheels are a rolling *abstraction* —
+their only dynamical effect is the `τ → F` conversion; wheel spin inertia and slip are
+neglected. Motion is planar and damping is viscous. (The [navigation](#navigation) extension
+adds a full rolling-contact MuJoCo wheel model that drops these abstractions.) The
 complete derivation is in [`docs/theory/modeling.md`](docs/theory/modeling.md) and
 [`src/segway/models/symbolic.py`](src/segway/models/symbolic.py); the analytic linearization
 is **automatically validated against a finite-difference Jacobian** in the test suite.
@@ -189,13 +245,16 @@ python benchmarks/tune_all.py                 # auto-tune every controller
 mkdocs serve                                  # the documentation site (needs the docs extra)
 ```
 
-Both front-ends are full control centers sharing one engine and one parameter module
-([`apps/_common.py`](apps/_common.py)), so they expose identical controls: **editable
-per-controller parameters**, **full physical properties** and **environment/initial state**,
-a **multi-kick disturbance list**, **Manual / Auto-Tune** modes with a tuner picker, and a
-**noisy-sensor + Kalman/EKF** estimation toggle. The desktop GUI adds a **live 3D MuJoCo
-viewer**, region of attraction, and GIF rendering with live embedded plots; the dashboard
-adds **compare-all** and region-of-attraction tabs.
+Both front-ends are mode-based control centers sharing one engine and one parameter module
+([`apps/_common.py`](apps/_common.py)). A top-level switch picks **🛴 Balancing** or
+**🧭 Navigation**, and each workflow cleanly separates **👁 Watch** — a live 3-D MuJoCo
+simulation — from **▶ Run** — headless results/plots only. Balancing exposes editable
+per-controller parameters, full physics and initial state, a multi-kick disturbance list,
+Manual / Auto-Tune, Kalman/EKF estimation, compare-all, and region of attraction; Navigation
+exposes the composable {balance × planner × follower} stack, preset and **click-to-place custom**
+maps, terrain, and the full run analysis. Incompatible options auto-disable (e.g. terrain needs
+the MuJoCo backend). The desktop GUI opens real interactive MuJoCo windows; the web dashboard
+renders the 3-D animation inline.
 
 ## Repository layout
 
@@ -211,15 +270,16 @@ adds **compare-all** and region-of-attraction tabs.
 │   ├── analysis/         # metrics, region of attraction, Monte-Carlo robustness
 │   ├── tuning/           # auto-tuning: Optuna (TPE/CMA-ES) + genetic algorithm
 │   ├── planning/         # min-jerk reference trajectories + iLQR trajectory optimization
-│   ├── envs/             # Gymnasium RL environment (domain randomization)
+│   ├── navigation/       # TWIP nav: planners · followers · navigator · maps · terrain · RL nav
+│   ├── envs/             # Gymnasium RL environments (balance + goal-conditioned navigation)
 │   ├── viz/              # matplotlib plots + MuJoCo render + live 3D viewer
-│   └── cli.py            # `segway list | info | run`
+│   └── cli.py            # `segway list | info | run | nav`
 ├── apps/                 # desktop_gui.py · streamlit_app.py · _common.py (shared)
-├── benchmarks/           # run_all.py (benchmark) · tune_all.py (tuning comparison)
+├── benchmarks/           # run_all.py · tune_all.py · run_nav.py (navigation sweeps)
 ├── examples/             # media generation scripts
-├── scripts/              # train_rl.py
-├── tests/                # validated suite (50 tests)
-├── docs/                 # MkDocs site: theory, architecture, roadmap, notes
+├── scripts/              # train_rl.py · train_nav_rl.py
+├── tests/                # validated suite
+├── docs/                 # MkDocs site: theory, architecture, navigation, roadmap, notes
 └── CHANGELOG.md · CONTRIBUTING.md · CHECKPOINTS.md · PROGRESS.md
 ```
 
@@ -228,6 +288,7 @@ adds **compare-all** and region-of-attraction tabs.
 - **[`docs/theory/modeling.md`](docs/theory/modeling.md)** — full derivation of the dynamics.
 - **[`docs/architecture.md`](docs/architecture.md)** — how the pieces fit together.
 - **[`docs/advanced-methods.md`](docs/advanced-methods.md)** — catalog of methods & future work.
+- **[`docs/navigation.md`](docs/navigation.md)** — the composable navigation stack.
 - **[`docs/roadmap.md`](docs/roadmap.md)** — the phased plan.
 - **[`docs/implementation-notes.md`](docs/implementation-notes.md)** — design decisions & derivations.
 - **[`PROGRESS.md`](PROGRESS.md)** / **[`CHECKPOINTS.md`](CHECKPOINTS.md)** — development log & reproducible milestones.

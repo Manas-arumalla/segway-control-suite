@@ -1,15 +1,13 @@
 """Segway Control Center — a polished desktop GUI (CustomTkinter).
 
-A clean, organized control center for the whole suite. Configuration is grouped into tabs
-(Controller · Robot · Scenario), a persistent action bar drives Run / View-3D / ROA /
-Auto-Tune / Render / Compare, and results appear in tabbed panes (Response · Metrics · ROA)
-with a progress bar and status line. Everything runs on background threads so the UI stays
-responsive, and the two front-ends share one parameter module (`apps/_common.py`).
-
-Carries over every capability of the original GUI — editable per-controller parameters,
-full physical properties, environment & initial state, a multi-kick disturbance list,
-Manual / Auto-Tune modes, and the live 3D viewer — and adds the new controllers, sensing +
-Kalman/EKF estimation, multiple tuners, and a compare-all view.
+A clean, mode-based control center. A top-level switch picks **🛴 Balancing** or
+**🧭 Navigation**, and the configuration tabs + action bar reconfigure to that workflow. Each
+workflow cleanly separates **👁 Watch** (open a live MuJoCo 3-D window, then show results) from
+**▶ Run** (headless results / plots only) — so there is never an ambiguous "Run" button.
+Balancing adds ROA, Auto-Tune, compare-all, and GIF render; Navigation adds a live drive-to-goal
+viewer, a click-to-place custom map editor, terrain, and a GIF render. Incompatible options
+auto-disable (e.g. terrain needs the MuJoCo backend). Everything runs on background threads so
+the UI stays responsive; both front-ends share one parameter module (`apps/_common.py`).
 
 Run:  python apps/desktop_gui.py        (needs the `gui` + `sim` + `viz` extras)
 """
@@ -45,16 +43,40 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.figure import Figure
 
 from segway.analysis import compute_roa
-from segway.config import RobotParams, SimConfig
+from segway.config import RobotParams, SimConfig, TWIPParams
 from segway.controllers import REGULATORS, build_controller
+from segway.navigation import (
+    build_scenario,
+    build_terrain,
+    list_followers,
+    list_planners,
+    list_scenarios,
+    list_terrains,
+    navigate,
+)
 from segway.sim import Scenario, simulate
 from segway.sim.mujoco_backend import CARTPOLE_PATH
 from segway.sim.scenarios import Disturbance
+from segway.viz import plot_nav_analysis, plot_navigation
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")
 ACCENT = "#00e5ff"
 PANEL = "#2b2b2b"
+# Full-state controllers that can track a speed command (tilt-only PID cannot drive).
+NAV_BALANCE = ["lqr", "mpc", "smc", "hinf", "pole_placement", "cascaded_pid"]
+
+
+class _PreviewResult:
+    """Duck-typed NavResult for drawing a not-yet-driven custom map in plot_navigation."""
+
+    def __init__(self, world, start, goal):
+        self.world, self.start, self.goal = world, start, goal
+        self.path = None
+        self.driven_path = np.empty((0, 2))
+        self.trajectory = None
+        self.success = self.fell = False
+        self.balance_name = self.planner_name = self.follower_name = "custom"
 
 
 class Tooltip:
@@ -106,24 +128,38 @@ class SegwayGUI(ctk.CTk):
 
     # ===== left: configuration ==========================================
     def _build_config_panel(self):
-        left = ctk.CTkFrame(self, width=440, corner_radius=0)
+        left = ctk.CTkFrame(self, width=460, corner_radius=0)
         left.grid(row=0, column=0, sticky="nsw")
         left.grid_propagate(False)
-        left.grid_rowconfigure(1, weight=1)
+        left.grid_rowconfigure(2, weight=1)
 
         title = ctk.CTkFrame(left, fg_color="transparent")
-        title.grid(row=0, column=0, sticky="ew", padx=16, pady=(14, 4))
-        ctk.CTkLabel(title, text="🛴 Segway Control Center", font=("Segoe UI", 18, "bold")).pack(anchor="w")
-        ctk.CTkLabel(title, text="Design · simulate · analyze · tune", text_color="#999",
+        title.grid(row=0, column=0, sticky="ew", padx=18, pady=(16, 2))
+        ctk.CTkLabel(title, text="🛴 Segway Control Center", font=("Segoe UI", 19, "bold")).pack(anchor="w")
+        ctk.CTkLabel(title, text="Balance · navigate · analyze", text_color="#8a8a8a",
                      font=("Segoe UI", 11)).pack(anchor="w")
 
-        self.tabs = ctk.CTkTabview(left, width=410)
-        self.tabs.grid(row=1, column=0, sticky="nsew", padx=10, pady=6)
-        for name in ("🎛 Controller", "🤖 Robot", "🌍 Scenario"):
-            self.tabs.add(name)
-        self._build_controller_tab(self.tabs.tab("🎛 Controller"))
-        self._build_robot_tab(self.tabs.tab("🤖 Robot"))
-        self._build_scenario_tab(self.tabs.tab("🌍 Scenario"))
+        # Top-level mode: Balancing vs Navigation. This drives which config tab and which
+        # action bar are shown, so each workflow stays self-contained and uncluttered.
+        self.app_mode = ctk.CTkSegmentedButton(
+            left, values=["🛴 Balancing", "🧭 Navigation"],
+            font=("Segoe UI", 13, "bold"), height=38, command=lambda _=None: self._on_app_mode())
+        self.app_mode.set("🛴 Balancing")
+        self.app_mode.grid(row=1, column=0, sticky="ew", padx=14, pady=(8, 6))
+
+        # Balancing config lives in tabs; navigation config is its own panel. The mode switch
+        # shows exactly one of them, so there is no duplicate "Navigate" entry.
+        self.bal_tabs = ctk.CTkTabview(left, width=430)
+        self.bal_tabs.grid(row=2, column=0, sticky="nsew", padx=10, pady=4)
+        for name in ("🎛 Controller", "🌍 Scenario", "🤖 Robot"):
+            self.bal_tabs.add(name)
+        self._build_controller_tab(self.bal_tabs.tab("🎛 Controller"))
+        self._build_scenario_tab(self.bal_tabs.tab("🌍 Scenario"))
+        self._build_robot_tab(self.bal_tabs.tab("🤖 Robot"))
+
+        self.nav_cfg = ctk.CTkFrame(left, fg_color="transparent")
+        self.nav_cfg.grid(row=2, column=0, sticky="nsew", padx=10, pady=4)
+        self._build_nav_tab(self.nav_cfg)
 
         self._build_actions(left)
 
@@ -200,35 +236,126 @@ class SegwayGUI(ctk.CTk):
         self.est_kind.set("Kalman")
         self.est_kind.pack(side="right", padx=10)
 
+    def _build_nav_tab(self, tab):
+        f = self._scroll(tab)
+        ctk.CTkLabel(f, text="Drive a balancing robot to a goal", font=("Segoe UI", 12, "bold")).pack(anchor="w", pady=(6, 0))
+        ctk.CTkLabel(f, text="Pick a balance controller, a global planner, and a path follower.",
+                     text_color="#9bd", font=("Segoe UI", 11), wraplength=350, justify="left").pack(anchor="w", pady=(0, 6))
+
+        def _menu(label, values, default):
+            ctk.CTkLabel(f, text=label, font=("Segoe UI", 11)).pack(anchor="w", pady=(6, 0))
+            m = ctk.CTkOptionMenu(f, values=values)
+            m.set(default)
+            m.pack(fill="x", pady=2)
+            return m
+
+        self.nav_balance = _menu("Balance controller", NAV_BALANCE, "lqr")
+        self.nav_planner = _menu("Planner", list_planners(), "a_star")
+        self.nav_follower = _menu("Follower", list_followers(), "pure_pursuit")
+        self.nav_map = _menu("Map", [*list_scenarios(), "custom"], "slalom")
+        self.nav_map.configure(command=lambda _=None: self._on_nav_map_change())
+        self.nav_backend = _menu("Backend (for Run Navigation)", ["analytic", "mujoco"], "analytic")
+        self.nav_terrain = _menu("Terrain (MuJoCo only)", ["none", *list_terrains()], "none")
+        self.nav_backend.configure(command=lambda _=None: self._sync_nav_enables())
+        ctk.CTkLabel(f, text="Watch Navigation always runs full 3-D MuJoCo physics.",
+                     text_color="#8a8a8a", font=("Segoe UI", 10), wraplength=340,
+                     justify="left").pack(anchor="w", pady=(0, 2))
+        self.nav_full = ctk.CTkCheckBox(f, text="Full run analysis (speed/pitch/yaw/torque)")
+        self.nav_full.pack(anchor="w", pady=(8, 2))
+
+        # --- click-to-draw custom map editor ---
+        self._custom_obs: list[tuple[float, float, float]] = []
+        self._custom_start = (1.0, 4.0)
+        self._custom_goal = (9.0, 4.0)
+        self._editing = False
+        ed = ctk.CTkFrame(f, fg_color=PANEL)
+        ed.pack(fill="x", pady=(10, 4))
+        ctk.CTkLabel(ed, text="✏️ Custom map editor", font=("Segoe UI", 12, "bold")).pack(anchor="w", padx=8, pady=(8, 0))
+        ctk.CTkLabel(ed, text="1) Click “Edit on canvas”.  2) Pick what to place.  3) Click on the "
+                     "Navigation plot (right) to drop it. Run/Watch then use this map.",
+                     text_color="#9bd", font=("Segoe UI", 10), wraplength=340, justify="left").pack(anchor="w", padx=8)
+        self.click_mode = ctk.CTkSegmentedButton(
+            ed, values=["Obstacle", "Start", "Goal"],
+            command=lambda _=None: self._editing and self._draw_custom_map())
+        self.click_mode.set("Obstacle")
+        self.click_mode.pack(fill="x", padx=8, pady=6)
+        wr = ctk.CTkFrame(ed, fg_color="transparent")
+        wr.pack(fill="x", padx=8)
+        self.cust_w = self._grid_entry(wr, "World W", "10.0", 0)
+        self.cust_h = self._grid_entry(wr, "World H", "8.0", 1)
+        self.cust_r = self._grid_entry(wr, "Obstacle r", "0.7", 2)
+        self.btn_edit = ctk.CTkButton(ed, text="✏️ Edit on canvas", fg_color="#2a6f9e",
+                                      hover_color="#3585bd", command=self._start_editing)
+        self.btn_edit.pack(fill="x", padx=8, pady=(6, 2))
+        br = ctk.CTkFrame(ed, fg_color="transparent")
+        br.pack(fill="x", padx=8, pady=(2, 8))
+        ctk.CTkButton(br, text="Clear obstacles", fg_color="#7a2e2e", hover_color="#9e3a3a",
+                      command=self._clear_custom).pack(side="left", expand=True, fill="x", padx=2)
+        ctk.CTkButton(br, text="Done editing", fg_color="#444",
+                      command=self._stop_editing).pack(side="left", expand=True, fill="x", padx=2)
+
     def _build_actions(self, parent):
         bar = ctk.CTkFrame(parent, fg_color=PANEL)
-        bar.grid(row=2, column=0, sticky="ew", padx=10, pady=(4, 10))
-        self.btn_run = ctk.CTkButton(bar, text="▶  Run Simulation", height=42, font=("Segoe UI", 14, "bold"),
-                                     fg_color=ACCENT, text_color="black", command=self.on_run)
-        self.btn_run.pack(fill="x", padx=10, pady=(10, 6))
-        row = ctk.CTkFrame(bar, fg_color="transparent")
-        row.pack(fill="x", padx=10)
-        self.btn_view = ctk.CTkButton(row, text="🧊 View 3D", width=120, command=self.on_view)
-        self.btn_roa = ctk.CTkButton(row, text="◌ ROA", width=120, command=self.on_roa)
-        self.btn_tune = ctk.CTkButton(row, text="✦ Tune", width=120, command=self.on_tune)
-        self.btn_view.pack(side="left", expand=True, fill="x", padx=2)
-        self.btn_roa.pack(side="left", expand=True, fill="x", padx=2)
-        self.btn_tune.pack(side="left", expand=True, fill="x", padx=2)
-        row2 = ctk.CTkFrame(bar, fg_color="transparent")
-        row2.pack(fill="x", padx=10, pady=(6, 4))
-        self.btn_cmp = ctk.CTkButton(row2, text="⚖ Compare all", command=self.on_compare)
-        self.btn_render = ctk.CTkButton(row2, text="🎬 Render GIF", command=self.on_render)
-        self.btn_cmp.pack(side="left", expand=True, fill="x", padx=2)
-        self.btn_render.pack(side="left", expand=True, fill="x", padx=2)
-        self._buttons = [self.btn_run, self.btn_view, self.btn_roa, self.btn_tune, self.btn_cmp, self.btn_render]
-        Tooltip(self.btn_view, "Open an interactive live MuJoCo 3D window.")
+        bar.grid(row=3, column=0, sticky="ew", padx=10, pady=(4, 10))
+        bar.grid_columnconfigure(0, weight=1)
+
+        def primary(p, text, cmd, color=ACCENT, fg="black"):
+            return ctk.CTkButton(p, text=text, height=44, font=("Segoe UI", 14, "bold"),
+                                 fg_color=color, text_color=fg, command=cmd)
+
+        def pair(parent_frame):
+            r = ctk.CTkFrame(parent_frame, fg_color="transparent")
+            r.pack(fill="x", padx=10, pady=(6, 2))
+            return r
+
+        # --- Balancing action bar ---
+        self.bal_bar = ctk.CTkFrame(bar, fg_color="transparent")
+        self.bal_bar.grid(row=0, column=0, sticky="ew")
+        wr = pair(self.bal_bar)
+        self.btn_watch = primary(wr, "👁  Watch Sim", self.on_watch_sim, color="#2a8a5d", fg="white")
+        self.btn_run = primary(wr, "▶  Run Sim", self.on_run)
+        self.btn_watch.pack(side="left", expand=True, fill="x", padx=(0, 3))
+        self.btn_run.pack(side="left", expand=True, fill="x", padx=(3, 0))
+        row = pair(self.bal_bar)
+        self.btn_roa = ctk.CTkButton(row, text="◌ ROA", command=self.on_roa)
+        self.btn_tune = ctk.CTkButton(row, text="✦ Tune", command=self.on_tune)
+        self.btn_cmp = ctk.CTkButton(row, text="⚖ Compare", command=self.on_compare)
+        for b in (self.btn_roa, self.btn_tune, self.btn_cmp):
+            b.pack(side="left", expand=True, fill="x", padx=2)
+        row2 = pair(self.bal_bar)
+        self.btn_render = ctk.CTkButton(row2, text="🎬 Render balancing GIF", fg_color="#444",
+                                        command=self.on_render)
+        self.btn_render.pack(fill="x")
+
+        # --- Navigation action bar ---
+        self.nav_bar = ctk.CTkFrame(bar, fg_color="transparent")
+        self.nav_bar.grid(row=0, column=0, sticky="ew")
+        nwr = pair(self.nav_bar)
+        self.btn_watch_nav = primary(nwr, "👁  Watch Navigation", self.on_watch_nav,
+                                     color="#2a8a5d", fg="white")
+        self.btn_run_nav = primary(nwr, "🧭  Run Navigation", self.on_navigate)
+        self.btn_watch_nav.pack(side="left", expand=True, fill="x", padx=(0, 3))
+        self.btn_run_nav.pack(side="left", expand=True, fill="x", padx=(3, 0))
+        nrow = pair(self.nav_bar)
+        self.btn_render_nav = ctk.CTkButton(nrow, text="🎬 Render navigation GIF", fg_color="#444",
+                                            command=self.on_render_nav)
+        self.btn_render_nav.pack(fill="x")
+
+        Tooltip(self.btn_watch, "Open a live MuJoCo window and watch the controller balance — then show results.")
+        Tooltip(self.btn_run, "Headless run → response/metrics/plots only (fast, no 3-D window).")
         Tooltip(self.btn_roa, "Sweep initial conditions and map the recoverable region.")
         Tooltip(self.btn_tune, "Auto-tune the controller's parameters (Manual mode shows the result).")
         Tooltip(self.btn_cmp, "Run every regulator on this scenario and overlay the responses.")
+        Tooltip(self.btn_watch_nav, "Plan a route and watch the robot drive it live in MuJoCo (3-D).")
+        Tooltip(self.btn_run_nav, "Headless navigation → top-down route / analysis plots only.")
+
+        self._buttons = [self.btn_watch, self.btn_run, self.btn_roa, self.btn_tune, self.btn_cmp,
+                         self.btn_render, self.btn_watch_nav, self.btn_run_nav, self.btn_render_nav]
 
         self.progress = ctk.CTkProgressBar(bar, mode="indeterminate")
-        self.progress.pack(fill="x", padx=10, pady=(4, 8))
+        self.progress.grid(row=1, column=0, sticky="ew", padx=10, pady=(6, 8))
         self.progress.set(0)
+        self._on_app_mode()   # show the correct bar/tab for the default mode
 
     # ===== right: results ===============================================
     def _build_results_panel(self):
@@ -239,7 +366,7 @@ class SegwayGUI(ctk.CTk):
 
         self.rtabs = ctk.CTkTabview(right)
         self.rtabs.grid(row=0, column=0, sticky="nsew")
-        for name in ("📈 Response", "🧮 Metrics", "◌ Region of Attraction"):
+        for name in ("📈 Response", "🧮 Metrics", "◌ Region of Attraction", "🧭 Navigation"):
             self.rtabs.add(name)
 
         resp = self.rtabs.tab("📈 Response")
@@ -257,6 +384,14 @@ class SegwayGUI(ctk.CTk):
         self.roa_fig = Figure(figsize=(7.0, 6.0), facecolor="#242424")
         self.roa_canvas = FigureCanvasTkAgg(self.roa_fig, master=roa)
         self.roa_canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+
+        nav = self.rtabs.tab("🧭 Navigation")
+        nav.grid_rowconfigure(0, weight=1)
+        nav.grid_columnconfigure(0, weight=1)
+        self.nav_fig = Figure(figsize=(7.0, 6.4), facecolor="#242424")
+        self.nav_canvas = FigureCanvasTkAgg(self.nav_fig, master=nav)
+        self.nav_canvas.get_tk_widget().grid(row=0, column=0, sticky="nsew")
+        self.nav_canvas.mpl_connect("button_press_event", self._on_nav_click)
 
         self.status = ctk.CTkLabel(right, text="", anchor="w", font=("Consolas", 12),
                                    wraplength=820, justify="left")
@@ -483,6 +618,175 @@ class SegwayGUI(ctk.CTk):
             self.after(0, lambda: self._set_status(f"Saved {out}"))
         self._run_bg(task)
 
+    # ===== mode + watch/render actions ==================================
+    def _on_app_mode(self):
+        nav = self.app_mode.get().startswith("🧭")
+        if nav:
+            self.bal_bar.grid_remove()
+            self.nav_bar.grid()
+            self.bal_tabs.grid_remove()
+            self.nav_cfg.grid()
+        else:
+            self.nav_bar.grid_remove()
+            self.bal_bar.grid()
+            self.nav_cfg.grid_remove()
+            self.bal_tabs.grid()
+        self._sync_nav_enables()
+
+    def _sync_nav_enables(self):
+        mj = self.nav_backend.get() == "mujoco"
+        self.nav_terrain.configure(state="normal" if mj else "disabled")
+        if not mj:
+            self.nav_terrain.set("none")
+
+    def on_watch_sim(self):
+        name = self.controller.get()
+        self._set_status("Opening live MuJoCo viewer — close the window to see the results…")
+
+        def task():
+            from segway.viz import live_view
+            p, swing = self._params(), name == "swingup"
+            if self.mode.get() == "Auto-Tune" and name in TUNABLE:
+                kw = tune(name, p, self.tuner.get())
+                self.after(0, lambda: self._populate(name, kw))
+                ctrl = build_controller(name, p, **kw)
+            else:
+                ctrl = self._build(name, p)
+            xml = CARTPOLE_PATH if swing else None
+            live_view(p, ctrl, self._scenario(swingup=swing),
+                      SimConfig(duration=120.0, fall_angle=50.0 if swing else 1.2), xml_path=xml)
+            ctrl.reset()
+            sim = SimConfig(duration=self._duration(), fall_angle=50.0 if swing else 1.2)
+            traj = simulate(p, ctrl, self._scenario(swingup=swing), sim)
+            self.after(0, lambda: (self.rtabs.set("📈 Response"), self._plot_traj(traj),
+                                   self._set_status("Live viewer closed — results shown.")))
+        self._run_bg(task)
+
+    def _nav_inputs(self):
+        if self.nav_map.get() == "custom":
+            world, start, goal = self._custom_world()
+        else:
+            sc = build_scenario(self.nav_map.get())
+            world, start, goal = sc.world, sc.start, sc.goal
+        terrain = build_terrain(self.nav_terrain.get()) if self.nav_terrain.get() != "none" else None
+        return world, start, goal, terrain
+
+    def on_watch_nav(self):
+        self.rtabs.set("🧭 Navigation")
+        self._set_status("Planning the route — opening live MuJoCo navigation (close it for results)…")
+
+        def task():
+            from segway.viz import live_view_navigation
+            world, start, goal, terrain = self._nav_inputs()
+            params = TWIPParams(base=self._params())
+            res = live_view_navigation(params, world, start, goal, balance=self.nav_balance.get(),
+                                       planner=self.nav_planner.get(), follower=self.nav_follower.get(),
+                                       terrain=terrain)
+            self.after(0, lambda: self._plot_nav(res, bool(self.nav_full.get())))
+        self._run_bg(task)
+
+    def on_render_nav(self):
+        self._set_status("Rendering navigation GIF → assets/gui_nav.gif …")
+
+        def task():
+            from segway.viz import render_navigation
+            world, start, goal, terrain = self._nav_inputs()
+            params = TWIPParams(base=self._params())
+            out = render_navigation(params, world, start, goal, balance=self.nav_balance.get(),
+                                    planner=self.nav_planner.get(), follower=self.nav_follower.get(),
+                                    terrain=terrain, path="assets/gui_nav.gif")
+            self.after(0, lambda: self._set_status(f"Saved {out}"))
+        self._run_bg(task)
+
+    def _custom_world(self):
+        from segway.navigation import Obstacle, World
+        w = float(self.cust_w.get())
+        h = float(self.cust_h.get())
+        obs = [Obstacle(x, y, r) for x, y, r in self._custom_obs]
+        return World(width=w, height=h, resolution=0.1, robot_radius=0.25, obstacles=obs), \
+            self._custom_start, self._custom_goal
+
+    def _start_editing(self):
+        """Enter click-to-place mode: select the custom map and draw it on the Navigation canvas."""
+        self.nav_map.set("custom")
+        self._editing = True
+        self.rtabs.set("🧭 Navigation")
+        self._draw_custom_map()
+
+    def _stop_editing(self):
+        self._editing = False
+        self._set_status("Map editing finished — click Run or Watch Navigation.")
+        self._draw_custom_map()
+
+    def _on_nav_map_change(self):
+        if self.nav_map.get() == "custom":
+            self._start_editing()
+        else:
+            self._editing = False
+
+    def _clear_custom(self):
+        self._custom_obs = []
+        self._editing = True
+        self.nav_map.set("custom")
+        self._draw_custom_map()
+
+    def _on_nav_click(self, event):
+        # Place items only while actively editing the custom map and the click is inside the plot.
+        if not self._editing or event.inaxes is None or event.xdata is None or event.ydata is None:
+            return
+        x, y = float(event.xdata), float(event.ydata)
+        mode = self.click_mode.get()
+        if mode == "Obstacle":
+            try:
+                r = max(0.1, float(self.cust_r.get()))
+            except ValueError:
+                r = 0.6
+            self._custom_obs.append((x, y, r))
+        elif mode == "Start":
+            self._custom_start = (x, y)
+        else:
+            self._custom_goal = (x, y)
+        self._draw_custom_map()
+
+    def _draw_custom_map(self):
+        world, start, goal = self._custom_world()
+        self.nav_fig.clear()
+        ax = self.nav_fig.add_subplot(111)
+        mode = self.click_mode.get() if self._editing else "—"
+        title = (f"Custom map — click to place: {mode}" if self._editing
+                 else "Custom map (click ‘Edit on canvas’ to place items)")
+        plot_navigation(_PreviewResult(world, start, goal), ax=ax, title=title)
+        self.nav_fig.tight_layout()
+        self.nav_canvas.draw()
+        if self._editing:
+            self._set_status(f"Editing custom map · mode={mode} · "
+                             f"{len(self._custom_obs)} obstacle(s). Click the plot to place; "
+                             "‘Done editing’ when finished.")
+
+    def on_navigate(self):
+        self.rtabs.set("🧭 Navigation")
+        self._set_status("Planning a path and driving to the goal…")
+        custom = self.nav_map.get() == "custom"
+        full = bool(self.nav_full.get())
+
+        def task():
+            if custom:
+                world, start, goal = self._custom_world()
+            else:
+                sc = build_scenario(self.nav_map.get())
+                world, start, goal = sc.world, sc.start, sc.goal
+            backend = self.nav_backend.get()
+            terrain = None
+            if self.nav_terrain.get() != "none":
+                backend = "mujoco"                       # terrain needs the contact backend
+                terrain = build_terrain(self.nav_terrain.get())
+            params = TWIPParams(base=self._params())
+            res = navigate(params, world, start, goal,
+                           balance=self.nav_balance.get(), planner=self.nav_planner.get(),
+                           follower=self.nav_follower.get(), backend=backend, terrain=terrain)
+            self.after(0, lambda: self._plot_nav(res, full))
+        self._run_bg(task)
+
     # ===== plotting =====================================================
     def _blank_plot(self):
         self.fig.clear()
@@ -567,6 +871,27 @@ class SegwayGUI(ctk.CTk):
         self.roa_canvas.draw()
         self.rtabs.set("◌ Region of Attraction")
         self._set_status(f"{res.controller_name} region of attraction — recoverable area {res.area_fraction:.0%}")
+
+    def _plot_nav(self, res, full=False):
+        self.nav_fig.clear()
+        if not res.planned:
+            ax = self.nav_fig.add_subplot(111)
+            ax.text(0.5, 0.5, "No path found from start to goal", ha="center", va="center",
+                    color="#f88", fontsize=14)
+            ax.set_xticks([])
+            ax.set_yticks([])
+            self.nav_canvas.draw()
+            self._set_status("Navigation: the planner found no path.")
+            return
+        if full and res.trajectory is not None:
+            plot_nav_analysis(res, fig=self.nav_fig)
+        else:
+            plot_navigation(res, ax=self.nav_fig.add_subplot(111))
+            self.nav_fig.tight_layout()
+        self.nav_canvas.draw()
+        status = "reached" if res.success else ("fell over" if res.fell else "did not reach")
+        self._set_status(f"Navigation {status} — time {res.time_to_goal:.1f}s, "
+                         f"path {res.path_length:.2f} m, min clearance {res.min_clearance:.3f} m.")
 
     def _set_status(self, text):
         self.status.configure(text=text)

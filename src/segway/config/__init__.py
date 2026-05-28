@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from .params import RobotParams, SimConfig
+from .params import RobotParams, SimConfig, TWIPParams
 
-__all__ = ["RobotParams", "SimConfig"]
+__all__ = ["RobotParams", "SimConfig", "TWIPParams"]

@@ -25,21 +25,24 @@ env/
 htmlcov/
 coverage.xml
 
-# Benchmark outputs are regenerated (`make bench` / `make tune`); curated copies live in
-# assets/ and are embedded in the README. Keep only the directory placeholder.
+# Benchmark outputs are regenerated (`make bench` / `make tune` / `run_nav.py`); curated copies
+# live in assets/ and are embedded in the README. Keep only the directory placeholders.
 benchmarks/results/*
 !benchmarks/results/.gitkeep
+benchmarks/nav_results/
 
-# Trained RL models (large; tracked via release artifacts or DVC if needed)
+# Trained RL models + training logs (regenerated via scripts/train_*.py)
 *.zip
 models/checkpoints/
+models/nav_train_log/
 
 # Rendered media scratch (curated finals live in assets/)
 *.mp4
 *.gif
 !assets/**/*.gif
 !assets/**/*.mp4
-assets/gui_render.gif        # scratch render produced by the desktop GUI
+assets/gui_render.gif        # scratch balancing render produced by the desktop GUI
+assets/gui_nav.gif           # scratch navigation render produced by the desktop GUI
 
 # Docs build
 site/

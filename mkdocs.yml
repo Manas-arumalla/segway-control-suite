@@ -29,6 +29,7 @@ nav:
   - Modeling & dynamics: theory/modeling.md
   - Architecture: architecture.md
   - Advanced methods: advanced-methods.md
+  - Navigation: navigation.md
   - Roadmap: roadmap.md
   - Implementation notes: implementation-notes.md
 

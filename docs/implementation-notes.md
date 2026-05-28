@@ -207,3 +207,54 @@ with an **indeterminate progress bar** below it; and moved results into **tabbed
 tooltips**, a **reset-to-defaults** button, and a **Compare-all** overlay. All parameter
 logic still comes from the shared `apps/_common.py`, so the desktop GUI and Streamlit
 dashboard stay identical.
+
+## ND-12 — Navigation: from the line into the plane (2026-05-27)
+
+I extended the balancer into a **planar two-wheeled inverted pendulum (TWIP)** so it can drive
+to goals, around obstacles, and over uneven terrain while staying upright. The whole stack is
+composable: at run time I pick a **balance controller × global planner × path follower**.
+
+**Why a decoupled TWIP.** I deliberately kept the longitudinal/balance subsystem *identical*
+to the 1-D plant: the wheel-torque **sum** drives balance+speed (exactly the `u = τ` the
+existing controllers expect), and the wheel-torque **difference** drives yaw as a separate
+damped second-order system. This let me reuse all eight balancing controllers unchanged for
+the inner loop — I feed the chosen controller the longitudinal error `[0, v−v_des, θ, θ̇]`
+(regulating *speed*, so the robot tracks a velocity command rather than a fixed position) for
+the torque sum, and a feed-forward + proportional law for the torque difference. The tilt-only
+PID balances but cannot drive (no velocity feedback), which I document rather than hide.
+
+**Planner and follower suites.** I built six planners (A*, Dijkstra, RRT, RRT*, PRM, potential
+field) and five followers (pure pursuit, Stanley, DWA, sampling-MPC, vector field) behind name
+registries, so the navigator and benchmark swap them freely. The follower bugs I hit and fixed:
+the look-ahead must never target a *passed* waypoint (I keep a monotonic progress index), the
+MPC tracker must score against a *densified* polyline (not sparse corners), and every follower
+needs a past-goal stop test or it converges to the final segment's infinite line and never
+stops. The composable navigator runs a two-rate loop — a fast inner balance loop and a slower
+(~10 Hz) follower command loop — which mirrors a real cascade and keeps the follower from
+fighting the balancer.
+
+**The real rolling-contact robot.** `models/assets/twip.xml` is a free-floating chassis on two
+driven wheels that *roll on the ground through frictional contact*. I do not impose traction or
+the chassis reaction — I apply the same `(τ_L, τ_R)` as wheel-hinge motor torques and let
+contact physics produce both. That the *same analytic-model LQR* then balances, tracks speed,
+and turns the full-contact robot is an independent confirmation that my decoupling holds. The
+sign conventions matched on the first try (a positive wheel torque rolls the contact forward
+and reacts `−τ` on the chassis — exactly the 1-D mapping), which is the clearest evidence the
+two models describe the same machine.
+
+**Uneven terrain.** I generate smooth height maps (sums of random low-frequency waves plus an
+optional grade) and drive them into a MuJoCo **heightfield**; the robot is spawned on the local
+surface and carries *no terrain sensing*, so the slopes are pure disturbances on the inner loop.
+The same controller balances and drives across bumps to ~20° local grade and climbs ramps — the
+robustness story I built earlier, now visibly paying off in the plane.
+
+**Learned navigation, honestly.** I trained a goal-conditioned PPO policy (`TWIPNavEnv`,
+observation = goal-in-body-frame + balance state, action = two wheel torques, with domain
+randomization) end-to-end — one network doing what the classical stack splits across a
+controller and a follower. It learns to turn toward and drive to goals in any direction without
+falling, but it settles at a **~0.4 m radial standoff** rather than landing exactly on the
+point: a velocity-tracking inverted pendulum must decelerate (lean back) as it arrives, so it
+asymptotes just short. The classical stack reaches a tighter tolerance only because it has
+explicit "stop within tol" logic. I therefore report the learned navigator with a 0.45 m
+arrival tolerance — realistic for a 0.5 m-wide balancing robot — and state the standoff plainly
+instead of tuning the number until it looks like a win.

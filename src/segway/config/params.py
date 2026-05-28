@@ -8,7 +8,7 @@ legacy code, where two different parameter sets silently coexisted).
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, fields
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -89,6 +89,27 @@ class SimConfig:
             raise ValueError("control_dt must be >= dt")
         if self.duration <= 0:
             raise ValueError("duration must be > 0")
+
+
+@dataclass
+class TWIPParams:
+    """Parameters for the planar two-wheeled inverted pendulum (TWIP) used in navigation.
+
+    The longitudinal/balance subsystem is described by ``base`` (the same `RobotParams` the
+    1-D controllers use), so existing balancing controllers are reused unchanged. The extra
+    fields describe the yaw (heading) subsystem driven by the wheel-torque difference.
+    """
+
+    base: RobotParams = field(default_factory=RobotParams)
+    track: float = 0.5     # lateral distance between the two wheels [m]
+    I_yaw: float = 0.4     # yaw moment of inertia about the vertical axis [kg*m^2]
+    b_yaw: float = 0.2     # yaw viscous damping [N*m*s/rad]
+
+    def __post_init__(self) -> None:
+        if self.track <= 0 or self.I_yaw <= 0:
+            raise ValueError("track and I_yaw must be > 0")
+        if self.b_yaw < 0:
+            raise ValueError("b_yaw must be >= 0")
 
 
 DEFAULT_PARAMS = RobotParams()

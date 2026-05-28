@@ -1,0 +1,80 @@
+<!--
+  Planar two-wheeled inverted pendulum (TWIP) for the MuJoCo backend — the navigation robot.
+
+  Unlike segway.xml (a contact-free articulated cross-check of the 1-D plant), this is the
+  *real rolling robot*: a free-floating chassis on two contacting wheels. The chassis is free
+  to translate, yaw, and pitch; it stays upright only because the wheels are driven. Wheel
+  torques produce traction through ground friction and an equal-and-opposite reaction on the
+  chassis — exactly the (traction tau/r, reaction -tau) mapping the analytic model assumes,
+  but here it emerges from contact physics rather than being imposed.
+
+  Masses, inertias, COM height, wheel radius, and track are overwritten at load time from
+  TWIPParams (see sim/mujoco_twip.py), so this model describes the same robot as twip_dynamics.
+
+  Bodies:  base (free joint) -> {pole (rigid body mass), left_wheel (hinge), right_wheel (hinge)}
+  Inputs:  left/right wheel-hinge motor torques (tau_L, tau_R).
+-->
+<mujoco model="twip">
+  <option gravity="0 0 -9.81" timestep="0.001" integrator="implicitfast" cone="elliptic"/>
+  <compiler angle="degree" autolimits="true"/>
+
+  <visual>
+    <global offwidth="1280" offheight="720"/>
+    <headlight ambient="0.5 0.5 0.5" diffuse="0.5 0.5 0.5" specular="0.2 0.2 0.2"/>
+    <map shadowclip="3"/>
+  </visual>
+
+  <default>
+    <joint armature="0.001"/>
+    <geom contype="0" conaffinity="0"/>
+  </default>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.5 0.6 0.7" rgb2="0.1 0.1 0.15"
+             width="512" height="512"/>
+    <texture name="grid" type="2d" builtin="checker" rgb1="0.2 0.25 0.3" rgb2="0.3 0.35 0.4"
+             width="512" height="512"/>
+    <material name="grid" texture="grid" texrepeat="10 10" reflectance="0.1"/>
+    <material name="wheel" rgba="0.12 0.12 0.14 1"/>
+    <material name="body" rgba="0.0 0.78 0.9 1"/>
+    <material name="head" rgba="0.95 0.55 0.1 1"/>
+  </asset>
+
+  <worldbody>
+    <light pos="0 0 5" dir="0 0 -1" diffuse="0.8 0.8 0.8"/>
+    <!-- Ground: contact enabled (wheels roll on it). -->
+    <geom name="floor" type="plane" pos="0 0 0" size="50 50 0.1" material="grid"
+          contype="1" conaffinity="1" friction="1.0 0.01 0.001"/>
+
+    <body name="base" pos="0 0 0.1">
+      <freejoint name="root"/>
+      <!-- chassis frame (axle) -->
+      <inertial pos="0 0 0" mass="1.0" diaginertia="0.01 0.01 0.01"/>
+      <geom type="box" size="0.06 0.22 0.02" pos="0 0 0" material="wheel"/>
+
+      <!-- body mass elevated to l above the axle: this is the inverted pendulum. -->
+      <body name="pole" pos="0 0 0">
+        <inertial pos="0 0 0.4" mass="5.0" diaginertia="0.2 0.2 0.01"/>
+        <geom type="capsule" fromto="0 0 0 0 0 0.5" size="0.035" material="body"/>
+        <geom type="box" pos="0 0 0.52" size="0.09 0.06 0.045" material="head"/>
+      </body>
+
+      <!-- driven wheels (hinge about the body y-axis), contacting the floor. -->
+      <body name="left_wheel" pos="0 0.25 0">
+        <joint name="left_hinge" type="hinge" axis="0 1 0" damping="0.05"/>
+        <geom type="cylinder" size="0.1 0.025" euler="90 0 0" material="wheel"
+              contype="1" conaffinity="1" friction="1.0 0.01 0.001"/>
+      </body>
+      <body name="right_wheel" pos="0 -0.25 0">
+        <joint name="right_hinge" type="hinge" axis="0 1 0" damping="0.05"/>
+        <geom type="cylinder" size="0.1 0.025" euler="90 0 0" material="wheel"
+              contype="1" conaffinity="1" friction="1.0 0.01 0.001"/>
+      </body>
+    </body>
+  </worldbody>
+
+  <actuator>
+    <motor name="tau_L" joint="left_hinge" gear="1" ctrllimited="true" ctrlrange="-200 200"/>
+    <motor name="tau_R" joint="right_hinge" gear="1" ctrllimited="true" ctrlrange="-200 200"/>
+  </actuator>
+</mujoco>
