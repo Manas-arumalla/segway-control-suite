@@ -18,9 +18,7 @@
 
 </div>
 
-> An engineering-grade reimagining of an earlier prototype (kept untouched under
-> [`Control GUI/`](Control%20GUI/) for reference). **Feature-complete — 50 tests passing,
-> lint-clean.**
+> [`Control GUI/`](Control%20GUI/) for reference).
 
 ---
 
