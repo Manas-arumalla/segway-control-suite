@@ -4,9 +4,9 @@
 
 **A rigorous, reproducible benchmark of control strategies for a self-balancing wheeled inverted pendulum — from classical to learned.**
 
+[![CI](https://github.com/Manas-arumalla/segway-control-suite/actions/workflows/ci.yml/badge.svg)](https://github.com/Manas-arumalla/segway-control-suite/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Tests](https://img.shields.io/badge/tests-50%20passing-brightgreen)
 ![Lint: ruff](https://img.shields.io/badge/lint-ruff-46a2f1)
 ![Built with MuJoCo](https://img.shields.io/badge/sim-MuJoCo-ff7043)
 [![Docs](https://img.shields.io/badge/docs-online-blueviolet)](https://manas-arumalla.github.io/segway-control-suite/)
